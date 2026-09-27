@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
+import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 
 type PageKey = 'home' | 'attendance' | 'company' | 'pocket' | 'settings' | 'career' | 'reports';
 
@@ -29,10 +30,15 @@ const secondaryNavigation: NavItem[] = [
 
 export function AppShell({ children, activePage }: { children: ReactNode; activePage: PageKey }) {
   const pathname = usePathname();
-  const [financialsVisible, setFinancialsVisible] = useState(true);
+  const { records } = useCurrentAppRecords();
+  const [visibilityOverride, setVisibilityOverride] = useState<boolean | null>(null);
+  const privacyModeEnabled = Boolean(records?.appSettings?.isPrivacyModeEnabled);
+  const financialsVisible = visibilityOverride ?? !privacyModeEnabled;
+  const language = records?.appSettings?.language;
+  const theme = records?.appSettings?.theme;
 
   return (
-    <div className={financialsVisible ? 'app-shell' : 'app-shell privacy-active'}>
+    <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined}>
       <aside className="desktop-sidebar" aria-label="Main navigation">
         <Brand />
         <Navigation items={primaryNavigation} activePage={activePage} pathname={pathname} />
@@ -52,7 +58,7 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
             type="button"
             aria-label={financialsVisible ? 'Hide financial values' : 'Show financial values'}
             aria-pressed={!financialsVisible}
-            onClick={() => setFinancialsVisible((current) => !current)}
+            onClick={() => setVisibilityOverride(!financialsVisible)}
           >
             {financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={19} /> : <AppIcon name="eye-off" aria-hidden="true" size={19} />}
           </button>

@@ -6,6 +6,8 @@ out/
 # Local tooling state
 .npm-cache/
 *.tsbuildinfo
+_phase2-build-check/
+_vercel-build-verification/
 
 # Local-only retained predecessor implementation
 legacy-prototype/

@@ -37,6 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "legacy-prototype"
+    "legacy-prototype",
+    "_phase2-build-check",
+    "_vercel-build-verification"
   ]
 }
