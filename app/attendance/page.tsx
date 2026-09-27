@@ -1,6 +1,6 @@
 import { AppShell } from '@/components/layout/app-shell';
-import { FeaturePlaceholder } from '@/components/layout/feature-placeholder';
+import { AttendanceContent } from '@/components/attendance/attendance-content';
 
 export default function AttendancePage() {
-  return <AppShell activePage="attendance"><FeaturePlaceholder icon="calendar" eyebrow="PHASE 4" title="Attendance, without guesswork." description="Calendar editing, rules, overtime, and bulk actions will live here." /></AppShell>;
+  return <AppShell activePage="attendance"><AttendanceContent /></AppShell>;
 }

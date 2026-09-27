@@ -1,6 +1,6 @@
 import { AppShell } from '@/components/layout/app-shell';
-import { FeaturePlaceholder } from '@/components/layout/feature-placeholder';
+import { CompanyContent } from '@/components/company/company-content';
 
 export default function CompanyPage() {
-  return <AppShell activePage="company"><FeaturePlaceholder icon="building" eyebrow="PHASE 5" title="A clear company ledger." description="Withdrawals, vouchers, advances, loans, credits, and deductions will be reconciled here." /></AppShell>;
+  return <AppShell activePage="company"><CompanyContent /></AppShell>;
 }

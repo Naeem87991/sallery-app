@@ -5,6 +5,8 @@ export type SalaryCalculationRule = '30-days' | '26-working-days' | 'calendar-da
 export type AutoAttendanceRule = 'off' | 'midnight' | 'shift-end' | 'custom-time';
 export type AppTheme = 'dark' | 'light';
 export type AppLanguage = 'en' | 'ur';
+export type AttendanceStatus = 'present' | 'absent' | 'half-day' | 'leave' | 'weekly-off';
+export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'deduction';
 
 export interface AuditedRecord {
   createdAt: string;
@@ -42,6 +44,24 @@ export interface AppSettings extends AuditedRecord {
   theme: AppTheme;
   language: AppLanguage;
   isPrivacyModeEnabled: boolean;
+}
+
+export interface AttendanceRecord extends AuditedRecord {
+  id: string;
+  date: string;
+  status: AttendanceStatus;
+  checkIn: string | null;
+  checkOut: string | null;
+  overtimeMinutes: number;
+  note: string;
+}
+
+export interface CompanyTransaction extends AuditedRecord {
+  id: string;
+  type: CompanyTransactionType;
+  amount: number;
+  occurredOn: string;
+  note: string;
 }
 
 export interface OnboardingPayload {
