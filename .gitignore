@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+
+# Local tooling state
+.npm-cache/
+*.tsbuildinfo
+
+# Local-only retained predecessor implementation
+legacy-prototype/
+
+# Environment files
+.env*
+!.env.example
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
