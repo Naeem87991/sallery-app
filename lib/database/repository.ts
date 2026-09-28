@@ -148,6 +148,22 @@ export async function saveAttendanceRecord(input: AttendanceRecordInput): Promis
   });
 }
 
+export type AutomaticAttendanceRecordInput = Pick<AttendanceRecord, 'date' | 'status' | 'note'>;
+
+export async function saveAutomaticAttendanceIfMissing(input: AutomaticAttendanceRecordInput): Promise<boolean> {
+  const recordInput: AttendanceRecordInput = { ...input, checkIn: null, checkOut: null, overtimeMinutes: 0 };
+  assertAttendanceInput(recordInput);
+
+  return db.transaction('rw', db.attendanceRecords, async () => {
+    const existing = await db.attendanceRecords.get(input.date);
+    if (existing) return false;
+
+    const now = new Date().toISOString();
+    await db.attendanceRecords.add({ id: input.date, ...recordInput, createdAt: now, updatedAt: now });
+    return true;
+  });
+}
+
 export async function fillWorkdaysForMonth({ month, weeklyOffDay, joiningDate, throughDate }: { month: string; weeklyOffDay: number; joiningDate: string; throughDate: string }): Promise<number> {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isInteger(weeklyOffDay) || weeklyOffDay < 0 || weeklyOffDay > 6 || !isValidLocalDate(joiningDate) || !isValidLocalDate(throughDate)) throw new Error('Attendance fill settings are invalid.');
   const [year, monthIndex] = month.split('-').map(Number);

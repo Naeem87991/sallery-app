@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { AutomaticAttendanceController } from '@/components/attendance/automatic-attendance-controller';
 import { AppLockScreen } from '@/components/security/app-lock-screen';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
@@ -48,12 +49,16 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
     setVisibilityOverride(nextVisibility);
     setLiveMessage(nextVisibility ? 'Financial values are visible.' : 'Financial values are hidden.');
   };
+  const announceAutomaticAttendance = useCallback((date: string) => {
+    setLiveMessage(`Automatic attendance marked present for ${date}.`);
+  }, []);
 
   if (securityLoading) return <main className="app-lock-screen"><span className="app-lock-checking">Checking local security…</span></main>;
   if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) return <AppLockScreen securitySettings={securitySettings} />;
 
   return (
     <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined}>
+      <AutomaticAttendanceController profile={records?.profile} salarySettings={records?.salarySettings} onRecordCreated={announceAutomaticAttendance} />
       <a className="skip-link" href="#main-content">Skip to page content</a>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{liveMessage}</span>
       <aside className="desktop-sidebar" aria-label="Main navigation">

@@ -5,7 +5,7 @@ An offline-first, mobile-focused salary and personal-finance workspace. It runs 
 ## Features
 
 - Live salary ticker with fixed-monthly and daily-rate rules
-- Attendance calendar and local company ledger
+- Attendance calendar with optional on-device auto-attendance, plus a local company ledger
 - Personal pocket, Udhaar entries, savings goals, and career history
 - Client-side PDF, CSV, and voucher-image exports
 - Encrypted local backup and previewed restore
@@ -29,6 +29,8 @@ npm run build
 The current live salary engine, company balance, and personal-pocket balance use centralized calculation modules under `lib/calculations`. Historical career records remain separate from current live finances. Ledger screens derive their balances from saved transaction records rather than overwriting a stored balance.
 
 The default monthly daily-rate rule is monthly salary divided by 30. Settings also support 26-working-day and calendar-day rules. Paid weekly offs and half-day factors remain configurable in local settings.
+
+Optional auto-attendance runs while the workspace is open or when it returns to the foreground. It records only the latest eligible blank day and never replaces a manual attendance entry.
 
 ## Local security and backups
 
