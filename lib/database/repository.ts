@@ -1,5 +1,17 @@
 import { db } from '@/lib/database/database';
 import {
+  assertAppPreferences,
+  assertAttendanceInput,
+  assertCareerRecordInput,
+  assertCompanyTransactionInput,
+  assertOnboardingPayload,
+  assertPocketTransactionInput,
+  assertProfile,
+  assertSalaryRules,
+  assertSavingsGoalInput,
+  isValidLocalDate,
+} from '@/lib/validation/domain';
+import {
   CURRENT_RECORD_ID,
   type AppSettings,
   type AttendanceRecord,
@@ -37,6 +49,7 @@ export const defaultAppSettings: Omit<AppSettings, 'id' | 'createdAt' | 'updated
 };
 
 export async function saveOnboarding(payload: OnboardingPayload): Promise<void> {
+  assertOnboardingPayload(payload);
   const now = new Date().toISOString();
   const [profile, salary, appSettings] = await Promise.all([
     db.profiles.get(CURRENT_RECORD_ID),
@@ -52,14 +65,17 @@ export async function saveOnboarding(payload: OnboardingPayload): Promise<void> 
 }
 
 export async function updateProfile(profile: UserProfile): Promise<void> {
+  assertProfile(profile);
   await db.profiles.put({ ...profile, updatedAt: new Date().toISOString() });
 }
 
 export async function updateSalarySettings(salarySettings: SalarySettings): Promise<void> {
+  assertSalaryRules(salarySettings);
   await db.salarySettings.put({ ...salarySettings, updatedAt: new Date().toISOString() });
 }
 
 export async function updateAppSettings(appSettings: AppSettings): Promise<void> {
+  assertAppPreferences(appSettings);
   await db.appSettings.put({ ...appSettings, updatedAt: new Date().toISOString() });
 }
 
@@ -121,6 +137,7 @@ export type AttendanceRecordInput = {
 };
 
 export async function saveAttendanceRecord(input: AttendanceRecordInput): Promise<void> {
+  assertAttendanceInput(input);
   const now = new Date().toISOString();
   const existing = await db.attendanceRecords.get(input.date);
   await db.attendanceRecords.put({
@@ -132,6 +149,7 @@ export async function saveAttendanceRecord(input: AttendanceRecordInput): Promis
 }
 
 export async function fillWorkdaysForMonth({ month, weeklyOffDay, joiningDate, throughDate }: { month: string; weeklyOffDay: number; joiningDate: string; throughDate: string }): Promise<number> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isInteger(weeklyOffDay) || weeklyOffDay < 0 || weeklyOffDay > 6 || !isValidLocalDate(joiningDate) || !isValidLocalDate(throughDate)) throw new Error('Attendance fill settings are invalid.');
   const [year, monthIndex] = month.split('-').map(Number);
   const lastDay = new Date(year, monthIndex, 0).getDate();
   const startDate = `${month}-01`;
@@ -160,6 +178,7 @@ export type CompanyTransactionInput = {
 };
 
 export async function addCompanyTransaction(input: CompanyTransactionInput): Promise<void> {
+  assertCompanyTransactionInput(input);
   const now = new Date().toISOString();
   await db.companyTransactions.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
 }
@@ -176,6 +195,7 @@ export type PocketTransactionInput = {
 };
 
 export async function addPocketTransaction(input: PocketTransactionInput): Promise<void> {
+  assertPocketTransactionInput(input);
   const now = new Date().toISOString();
   await db.pocketTransactions.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
 }
@@ -187,11 +207,13 @@ export async function deletePocketTransaction(id: string): Promise<void> {
 export type SavingsGoalInput = Pick<SavingsGoal, 'name' | 'targetAmount' | 'savedAmount' | 'targetDate' | 'note'>;
 
 export async function addSavingsGoal(input: SavingsGoalInput): Promise<void> {
+  assertSavingsGoalInput(input);
   const now = new Date().toISOString();
   await db.savingsGoals.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
 }
 
 export async function updateSavingsGoal(goal: SavingsGoal): Promise<void> {
+  assertSavingsGoalInput(goal);
   await db.savingsGoals.put({ ...goal, updatedAt: new Date().toISOString() });
 }
 
@@ -202,6 +224,7 @@ export async function deleteSavingsGoal(id: string): Promise<void> {
 export type CareerRecordInput = Pick<CareerRecord, 'companyName' | 'designation' | 'startDate' | 'endDate' | 'monthlySalary' | 'note'>;
 
 export async function addCareerRecord(input: CareerRecordInput): Promise<void> {
+  assertCareerRecordInput(input);
   const now = new Date().toISOString();
   await db.careerRecords.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
 }

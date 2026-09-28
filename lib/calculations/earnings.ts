@@ -20,7 +20,8 @@ export function calculateLiveEarnings(
   now: Date,
 ): LiveEarningsSnapshot {
   const dailyRate = calculateDailyRate(salarySettings, now);
-  const hourlyRate = dailyRate / salarySettings.shiftDurationHours;
+  const shiftDurationHours = getSafeShiftDuration(salarySettings.shiftDurationHours);
+  const hourlyRate = dailyRate / shiftDurationHours;
   const shift = getRelevantShift(salarySettings, now);
   const shiftDate = startOfLocalDay(shift.start);
   const joiningDate = parseLocalDate(profile.joiningDate);
@@ -49,7 +50,7 @@ export function calculateLiveEarnings(
   }
 
   const scheduledDuration = Math.max(shift.end.getTime() - shift.start.getTime(), 1);
-  const earningDuration = Math.max(salarySettings.shiftDurationHours * millisecondsPerHour, 1);
+  const earningDuration = shiftDurationHours * millisecondsPerHour;
   const elapsed = now.getTime() - shift.start.getTime();
   const progress = clamp(elapsed / scheduledDuration);
 
@@ -64,16 +65,16 @@ export function calculateLiveEarnings(
 }
 
 export function calculateDailyRate(salarySettings: SalarySettings, now: Date): number {
-  if (salarySettings.salaryMode === 'daily-rate') return salarySettings.dailyRate ?? 0;
+  if (salarySettings.salaryMode === 'daily-rate') return getSafeMoneyAmount(salarySettings.dailyRate);
 
   switch (salarySettings.salaryCalculationRule) {
     case '26-working-days':
-      return salarySettings.baseSalary / 26;
+      return getSafeMoneyAmount(salarySettings.baseSalary) / 26;
     case 'calendar-days':
-      return salarySettings.baseSalary / getDaysInMonth(now);
+      return getSafeMoneyAmount(salarySettings.baseSalary) / getDaysInMonth(now);
     case '30-days':
     default:
-      return salarySettings.baseSalary / 30;
+      return getSafeMoneyAmount(salarySettings.baseSalary) / 30;
   }
 }
 
@@ -125,4 +126,12 @@ function getDaysInMonth(date: Date): number {
 
 function clamp(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function getSafeShiftDuration(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+function getSafeMoneyAmount(value: number | null): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 }

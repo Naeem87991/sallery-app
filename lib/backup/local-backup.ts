@@ -2,6 +2,7 @@ import 'client-only';
 
 import { DATABASE_SCHEMA_VERSION, db } from '@/lib/database/database';
 import { base64ToBytes, bytesToBase64, toArrayBuffer } from '@/lib/security/pin';
+import { assertAppPreferences, assertAttendanceInput, assertCareerRecordInput, assertCompanyTransactionInput, assertPocketTransactionInput, assertProfile, assertSalaryRules, assertSavingsGoalInput } from '@/lib/validation/domain';
 import type { AppSettings, AttendanceRecord, CareerRecord, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
 
 const BACKUP_KIND = 'live-salary-ticker-encrypted-backup';
@@ -160,50 +161,66 @@ function validateBackupPayload(input: unknown): DecryptedBackup {
 
 function validateUserProfile(input: unknown): UserProfile {
   const record = validateAudited(input, 'profile');
-  return { ...baseCurrentRecord(record, 'profile'), firstName: requiredString(record.firstName, 'profile first name'), lastName: requiredString(record.lastName, 'profile last name'), employeeId: requiredString(record.employeeId, 'profile employee ID'), designation: requiredString(record.designation, 'profile designation'), joiningDate: requiredString(record.joiningDate, 'profile joining date') };
+  const profile = { ...baseCurrentRecord(record, 'profile'), firstName: requiredString(record.firstName, 'profile first name'), lastName: requiredString(record.lastName, 'profile last name'), employeeId: requiredString(record.employeeId, 'profile employee ID'), designation: requiredString(record.designation, 'profile designation'), joiningDate: requiredString(record.joiningDate, 'profile joining date') };
+  assertProfile(profile);
+  return profile;
 }
 
 function validateSalarySettings(input: unknown): SalarySettings {
   const record = validateAudited(input, 'salary settings');
   if (!isOneOf(record.salaryMode, ['fixed-monthly', 'daily-rate']) || !isOneOf(record.salaryCalculationRule, ['30-days', '26-working-days', 'calendar-days']) || !isOneOf(record.autoAttendanceRule, ['off', 'midnight', 'shift-end', 'custom-time']) || record.currency !== 'PKR') throw new Error('The backup salary settings are invalid.');
   if (!isFiniteNumber(record.baseSalary) || !isNullableFiniteNumber(record.dailyRate) || !isString(record.dutyStart) || !isString(record.dutyEnd) || !isFiniteNumber(record.shiftDurationHours) || !isFiniteNumber(record.weeklyOffDay) || !isBoolean(record.isWeeklyOffPaid) || !isNullableString(record.autoAttendanceTime) || !isFiniteNumber(record.halfDayFactor)) throw new Error('The backup salary values are invalid.');
-  return { ...baseCurrentRecord(record, 'salary settings'), salaryMode: record.salaryMode, baseSalary: record.baseSalary, dailyRate: record.dailyRate, salaryCalculationRule: record.salaryCalculationRule, dutyStart: record.dutyStart, dutyEnd: record.dutyEnd, shiftDurationHours: record.shiftDurationHours, weeklyOffDay: record.weeklyOffDay, isWeeklyOffPaid: record.isWeeklyOffPaid, autoAttendanceRule: record.autoAttendanceRule, autoAttendanceTime: record.autoAttendanceTime, halfDayFactor: record.halfDayFactor, currency: 'PKR' };
+  const salarySettings = { ...baseCurrentRecord(record, 'salary settings'), salaryMode: record.salaryMode, baseSalary: record.baseSalary, dailyRate: record.dailyRate, salaryCalculationRule: record.salaryCalculationRule, dutyStart: record.dutyStart, dutyEnd: record.dutyEnd, shiftDurationHours: record.shiftDurationHours, weeklyOffDay: record.weeklyOffDay, isWeeklyOffPaid: record.isWeeklyOffPaid, autoAttendanceRule: record.autoAttendanceRule, autoAttendanceTime: record.autoAttendanceTime, halfDayFactor: record.halfDayFactor, currency: 'PKR' };
+  assertSalaryRules(salarySettings);
+  return salarySettings;
 }
 
 function validateAppSettings(input: unknown): AppSettings {
   const record = validateAudited(input, 'app settings');
   if (!isOneOf(record.theme, ['dark', 'light']) || !isOneOf(record.language, ['en', 'ur']) || !isBoolean(record.isPrivacyModeEnabled)) throw new Error('The backup display settings are invalid.');
-  return { ...baseCurrentRecord(record, 'app settings'), theme: record.theme, language: record.language, isPrivacyModeEnabled: record.isPrivacyModeEnabled };
+  const appSettings = { ...baseCurrentRecord(record, 'app settings'), theme: record.theme, language: record.language, isPrivacyModeEnabled: record.isPrivacyModeEnabled };
+  assertAppPreferences(appSettings);
+  return appSettings;
 }
 
 function validateAttendanceRecord(input: unknown): AttendanceRecord {
   const record = validateAudited(input, 'attendance record');
   if (!isString(record.id) || !isString(record.date) || !isOneOf(record.status, ['present', 'absent', 'half-day', 'leave', 'weekly-off']) || !isNullableString(record.checkIn) || !isNullableString(record.checkOut) || !isFiniteNumber(record.overtimeMinutes) || !isString(record.note)) throw new Error('An attendance record is invalid.');
-  return { id: record.id, date: record.date, status: record.status, checkIn: record.checkIn, checkOut: record.checkOut, overtimeMinutes: record.overtimeMinutes, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const attendanceRecord = { id: record.id, date: record.date, status: record.status, checkIn: record.checkIn, checkOut: record.checkOut, overtimeMinutes: record.overtimeMinutes, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertAttendanceInput(attendanceRecord);
+  return attendanceRecord;
 }
 
 function validateCompanyTransaction(input: unknown): CompanyTransaction {
   const record = validateAudited(input, 'company transaction');
   if (!isString(record.id) || !isOneOf(record.type, ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'deduction']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note)) throw new Error('A company transaction is invalid.');
-  return { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const companyTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertCompanyTransactionInput(companyTransaction);
+  return companyTransaction;
 }
 
 function validatePocketTransaction(input: unknown): PocketTransaction {
   const record = validateAudited(input, 'pocket transaction');
   if (!isString(record.id) || !isOneOf(record.type, ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note)) throw new Error('A pocket transaction is invalid.');
-  return { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const pocketTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertPocketTransactionInput(pocketTransaction);
+  return pocketTransaction;
 }
 
 function validateSavingsGoal(input: unknown): SavingsGoal {
   const record = validateAudited(input, 'savings goal');
   if (!isString(record.id) || !isString(record.name) || !isFiniteNumber(record.targetAmount) || !isFiniteNumber(record.savedAmount) || !isNullableString(record.targetDate) || !isString(record.note)) throw new Error('A savings goal is invalid.');
-  return { id: record.id, name: record.name, targetAmount: record.targetAmount, savedAmount: record.savedAmount, targetDate: record.targetDate, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const savingsGoal = { id: record.id, name: record.name, targetAmount: record.targetAmount, savedAmount: record.savedAmount, targetDate: record.targetDate, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertSavingsGoalInput(savingsGoal);
+  return savingsGoal;
 }
 
 function validateCareerRecord(input: unknown): CareerRecord {
   const record = validateAudited(input, 'career record');
   if (!isString(record.id) || !isString(record.companyName) || !isString(record.designation) || !isString(record.startDate) || !isString(record.endDate) || !isFiniteNumber(record.monthlySalary) || !isString(record.note)) throw new Error('A career record is invalid.');
-  return { id: record.id, companyName: record.companyName, designation: record.designation, startDate: record.startDate, endDate: record.endDate, monthlySalary: record.monthlySalary, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const careerRecord = { id: record.id, companyName: record.companyName, designation: record.designation, startDate: record.startDate, endDate: record.endDate, monthlySalary: record.monthlySalary, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertCareerRecordInput(careerRecord);
+  return careerRecord;
 }
 
 function validateAudited(input: unknown, label: string): Record<string, unknown> & { createdAt: string; updatedAt: string } {
