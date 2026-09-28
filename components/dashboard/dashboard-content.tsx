@@ -72,8 +72,31 @@ function useLiveClock() {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(interval);
+    let timer: number | undefined;
+
+    const stop = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+    };
+
+    const tick = () => {
+      const currentTime = new Date();
+      setNow(currentTime);
+      if (document.visibilityState === 'hidden') return;
+      timer = window.setTimeout(tick, 1_000 - (currentTime.getTime() % 1_000) + 12);
+    };
+
+    const handleVisibilityChange = () => {
+      stop();
+      if (document.visibilityState !== 'hidden') tick();
+    };
+
+    tick();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   return now;

@@ -41,19 +41,28 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
   const financialsVisible = visibilityOverride ?? !privacyModeEnabled;
   const language = records?.appSettings?.language;
   const theme = records?.appSettings?.theme;
+  const [liveMessage, setLiveMessage] = useState('');
+
+  const toggleFinancialVisibility = () => {
+    const nextVisibility = !financialsVisible;
+    setVisibilityOverride(nextVisibility);
+    setLiveMessage(nextVisibility ? 'Financial values are visible.' : 'Financial values are hidden.');
+  };
 
   if (securityLoading) return <main className="app-lock-screen"><span className="app-lock-checking">Checking local security…</span></main>;
   if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) return <AppLockScreen securitySettings={securitySettings} />;
 
   return (
     <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined}>
+      <a className="skip-link" href="#main-content">Skip to page content</a>
+      <span className="sr-only" aria-live="polite" aria-atomic="true">{liveMessage}</span>
       <aside className="desktop-sidebar" aria-label="Main navigation">
         <Brand />
         <Navigation items={primaryNavigation} activePage={activePage} pathname={pathname} />
         <div className="sidebar-divider" />
         <Navigation items={secondaryNavigation} activePage={activePage} pathname={pathname} subtle />
         <div className="sidebar-bottom">
-          <button className="sidebar-privacy-button" type="button" aria-label={financialsVisible ? 'Hide financial values' : 'Show financial values'} aria-pressed={!financialsVisible} onClick={() => setVisibilityOverride(!financialsVisible)}>{financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={15} /> : <AppIcon name="eye-off" aria-hidden="true" size={15} />}{financialsVisible ? 'Hide values' : 'Show values'}</button>
+          <button className="sidebar-privacy-button" type="button" aria-label={financialsVisible ? 'Hide financial values' : 'Show financial values'} aria-pressed={!financialsVisible} onClick={toggleFinancialVisibility}>{financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={15} /> : <AppIcon name="eye-off" aria-hidden="true" size={15} />}{financialsVisible ? 'Hide values' : 'Show values'}</button>
           <div className="offline-indicator"><span className="pulse-dot" />Offline ready</div>
           <p>Private by design<br />Stored on this device</p>
         </div>
@@ -67,12 +76,12 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
             type="button"
             aria-label={financialsVisible ? 'Hide financial values' : 'Show financial values'}
             aria-pressed={!financialsVisible}
-            onClick={() => setVisibilityOverride(!financialsVisible)}
+            onClick={toggleFinancialVisibility}
           >
             {financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={19} /> : <AppIcon name="eye-off" aria-hidden="true" size={19} />}
           </button>
         </header>
-        <main className="page-content">{children}</main>
+        <main className="page-content" id="main-content" tabIndex={-1}>{children}</main>
       </div>
       <nav className="bottom-navigation" aria-label="Primary navigation">
         {primaryNavigation.map((item) => <NavLink key={item.key} item={item} active={activePage === item.key || pathname === item.href} />)}
@@ -104,7 +113,7 @@ function Navigation({ items, activePage, pathname, subtle = false }: { items: Na
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
-    <Link className={active ? 'nav-link nav-link-active' : 'nav-link'} href={item.href}>
+    <Link className={active ? 'nav-link nav-link-active' : 'nav-link'} href={item.href} aria-current={active ? 'page' : undefined}>
       <AppIcon name={item.icon} aria-hidden="true" size={19} strokeWidth={active ? 2.25 : 1.8} />
       <span>{item.label}</span>
     </Link>

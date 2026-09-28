@@ -16,11 +16,18 @@
 }
 
 * { box-sizing: border-box; }
-html { background: var(--canvas-deep); }
-body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans), Arial, sans-serif; }
-button, a { -webkit-tap-highlight-color: transparent; }
+html { background: var(--canvas-deep); scroll-behavior: smooth; scrollbar-gutter: stable; }
+body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans), Arial, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
+button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 button { font: inherit; }
 a { color: inherit; text-decoration: none; }
+.app-shell { color-scheme: dark; }
+.app-shell-light { color-scheme: light; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link { position: fixed; z-index: 100; top: 12px; left: 12px; transform: translateY(-160%); padding: 10px 13px; border-radius: 10px; background: var(--accent); color: #10200d; font-size: 12px; font-weight: 800; transition: transform .18s ease; }
+.skip-link:focus { transform: translateY(0); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.app-main:focus, .page-content:focus { outline: none; }
 
 .app-shell { min-height: 100svh; background: radial-gradient(circle at 85% -15%, rgba(100, 202, 109, .13), transparent 30rem), radial-gradient(circle at -5% 20%, rgba(182, 255, 69, .06), transparent 24rem), var(--canvas); }
 .app-shell-light { --canvas: #eef5ed; --canvas-deep: #dfeadd; --panel: rgba(255, 255, 255, .78); --panel-solid: #ffffff; --ink: #132017; --muted: #506455; --line: rgba(28, 64, 33, .14); --accent-dark: #e1f1d3; --shadow: 0 18px 50px rgba(31, 64, 35, .12); background: radial-gradient(circle at 85% -15%, rgba(100, 202, 109, .18), transparent 30rem), radial-gradient(circle at -5% 20%, rgba(182, 255, 69, .12), transparent 24rem), var(--canvas); }
@@ -115,5 +122,23 @@ h1, h2, h3, p { margin-top: 0; }
 .security-panel { display: grid; gap: 17px; margin-top: 19px; }.security-state, .passkey-row { display: flex; align-items: center; gap: 11px; padding: 13px; border: 1px solid rgba(182,255,69,.14); border-radius: 15px; background: rgba(255,255,255,.018); }.security-state-icon { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: rgba(182,255,69,.1); color: var(--accent); }.security-state > div, .passkey-row > div { min-width: 0; }.security-state strong, .security-state small, .passkey-row strong, .passkey-row small { display: block; }.security-state strong, .passkey-row strong { color: #deecdb; font-size: 12px; }.security-state small, .passkey-row small { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.45; }.security-state .secondary-button, .passkey-row .secondary-button { flex: 0 0 auto; margin-left: auto; }.security-pin-form { display: grid; gap: 13px; }.security-pin-form .form-hint { margin: 0; }.security-actions { display: flex; align-items: center; gap: 14px; }.security-actions .remove-button { margin: 0; }.security-note { margin: 0; color: #859889; font-size: 10px; line-height: 1.55; }.security-status, .backup-status { min-height: 15px; color: #bbf290; font-size: 11px; font-weight: 700; }.security-loading { margin: 18px 0 0; color: var(--muted); font-size: 11px; }
 
 .backup-panel { display: grid; gap: 17px; margin-top: 19px; }.backup-grid { display: grid; gap: 12px; }.backup-card { display: grid; align-content: start; justify-items: start; gap: 13px; padding: 17px; border: 1px solid rgba(182,255,69,.14); border-radius: 17px; background: rgba(255,255,255,.018); }.backup-card .security-state-icon { margin-bottom: 2px; }.backup-card h3, .backup-preview h3 { margin: 0; color: #e1ecdf; font-size: 15px; letter-spacing: -.025em; }.backup-card > p:not(.eyebrow), .backup-preview > div > p:not(.eyebrow) { margin: -4px 0 1px; color: var(--muted); font-size: 11px; line-height: 1.55; }.backup-card .field { width: 100%; }.backup-card .field input[type="file"] { padding-top: 11px; font-size: 10px; }.backup-card code { padding: 1px 4px; border-radius: 4px; background: rgba(182,255,69,.1); color: #d5f8ad; }.backup-preview { display: grid; gap: 15px; padding: 18px; border: 1px solid rgba(182,255,69,.3); border-radius: 18px; background: linear-gradient(135deg, rgba(43,82,45,.42), rgba(15,35,21,.46)); }.backup-preview dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }.backup-preview dl > div { padding: 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; background: rgba(0,0,0,.08); }.backup-preview dt, .backup-preview dd { margin: 0; }.backup-preview dt { color: var(--muted); font-size: 9px; }.backup-preview dd { margin-top: 3px; color: #dffbc5; font-family: var(--font-mono), monospace; font-size: 15px; }.restore-confirm { display: flex; align-items: flex-start; gap: 9px; color: #c9d9c9; font-size: 11px; line-height: 1.45; cursor: pointer; }.restore-confirm input { margin-top: 2px; accent-color: var(--accent); }.restore-button { justify-self: start; }
+
+/* Phase 11: contain paint work for dense local ledgers without hiding content from assistive technology. */
+.company-transaction-list, .career-history-list, .savings-section, .report-contents { contain: paint; }
+
+@media (prefers-contrast: more) {
+  :root { --line: rgba(237, 255, 236, .34); --muted: #b4c7b7; }
+  .app-shell-light { --line: rgba(16, 54, 23, .34); --muted: #36513c; }
+  .field input, .field select, .icon-button, .secondary-button, .sidebar-privacy-button { border-color: currentColor; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .action-strip, .content-panel, .metric-card, .wizard-card, .settings-section, .attendance-calendar-section, .attendance-editor, .company-entry-form, .company-transaction-list, .savings-section, .career-history-list, .settings-save-bar, .desktop-sidebar { background-color: var(--panel-solid); }
+}
 
 @media (min-width: 900px) { .backup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.security-pin-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }.security-pin-form .field:nth-of-type(1):last-of-type, .security-pin-form .form-hint, .security-actions { grid-column: 1 / -1; }.security-state, .passkey-row { padding: 15px; } }
