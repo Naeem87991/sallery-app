@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useCompanyTransactions } from '@/hooks/use-company-transactions';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { usePocketRecords } from '@/hooks/use-pocket-records';
 import { calculateLiveEarnings, type LiveEarningsSnapshot } from '@/lib/calculations/earnings';
 import { getCompanyBalance } from '@/lib/calculations/company-balance';
+import { getPocketBalance } from '@/lib/calculations/pocket-balance';
 import { formatCurrency, formatCurrencyAmount } from '@/lib/formatting/currency';
 
 const checklist = [
@@ -18,6 +20,7 @@ const checklist = [
 export function DashboardContent() {
   const { records, isLoading, isOnboarded } = useCurrentAppRecords();
   const { transactions, isLoading: companyLoading } = useCompanyTransactions();
+  const { transactions: pocketTransactions, isLoading: pocketLoading } = usePocketRecords();
   const now = useLiveClock();
 
   if (isLoading) return <section className="dashboard-loading" aria-live="polite">Preparing your local workspace…</section>;
@@ -29,6 +32,7 @@ export function DashboardContent() {
     ? salarySettings.dailyRate ?? 0
     : salarySettings.baseSalary;
   const companyBalance = getCompanyBalance(transactions);
+  const pocketBalance = getPocketBalance(pocketTransactions);
 
   return (
     <>
@@ -54,11 +58,12 @@ export function DashboardContent() {
 
       <section className="overview-grid" aria-label="Salary configuration overview">
         <Link className="metric-card metric-card-link" href="/company"><div className="metric-icon company-icon"><AppIcon name="building" aria-hidden="true" size={20} /></div><div><p>Company balance</p><strong>{companyLoading ? 'PKR —' : formatCurrency(companyBalance)}</strong><span>{companyBalance < 0 ? 'Deductions exceed credits' : 'Available credit'}</span></div></Link>
+        <Link className="metric-card metric-card-link" href="/pocket"><div className="metric-icon pocket-icon"><AppIcon name="wallet" aria-hidden="true" size={20} /></div><div><p>Personal pocket</p><strong>{pocketLoading ? 'PKR —' : formatCurrency(pocketBalance)}</strong><span>{pocketBalance < 0 ? 'Outgoing entries exceed cash in' : 'Local personal cash'}</span></div></Link>
         <article className="metric-card"><div className="metric-icon company-icon"><AppIcon name="dollar" aria-hidden="true" size={20} /></div><div><p>Base salary</p><strong>{formatCurrency(salaryAmount)}</strong><span>{salarySettings.salaryMode === 'fixed-monthly' ? 'Per month' : 'Per day'}</span></div></article>
         <article className="metric-card"><div className="metric-icon pocket-icon"><AppIcon name="wallet" aria-hidden="true" size={20} /></div><div><p>Today&apos;s scheduled pay</p><strong>{liveEarnings ? formatCurrency(liveEarnings.dailyRate) : 'PKR —'}</strong><span>{salarySettings.isWeeklyOffPaid ? 'Weekly off is paid' : 'Weekly off is unpaid'}</span></div></article>
       </section>
 
-      <section className="content-panel next-phase-panel" aria-labelledby="next-title"><div className="panel-heading"><div><p className="eyebrow">LIVE NOW</p><h2 id="next-title">Your work and company balance stay in sync.</h2></div><span className="progress-label">Phases 4 &amp; 5 active</span></div><p>Track attendance day by day, then reconcile every company credit and deduction from the local ledger.</p><Link className="secondary-button" href="/attendance">Open attendance <AppIcon name="arrow-right" aria-hidden="true" size={16} /></Link></section>
+      <section className="content-panel next-phase-panel" aria-labelledby="next-title"><div className="panel-heading"><div><p className="eyebrow">LIVE NOW</p><h2 id="next-title">Your private workspace is complete.</h2></div><span className="progress-label">Phases 4–8 active</span></div><p>Track work, company money, personal cash, savings, career history, and local exports from one offline-first workspace.</p><Link className="secondary-button" href="/reports">Open reports <AppIcon name="arrow-right" aria-hidden="true" size={16} /></Link></section>
     </>
   );
 }

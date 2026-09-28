@@ -7,6 +7,7 @@ export type AppTheme = 'dark' | 'light';
 export type AppLanguage = 'en' | 'ur';
 export type AttendanceStatus = 'present' | 'absent' | 'half-day' | 'leave' | 'weekly-off';
 export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'deduction';
+export type PocketTransactionType = 'cash-in' | 'expense' | 'receipt' | 'udhaar-given' | 'udhaar-received';
 
 export interface AuditedRecord {
   createdAt: string;
@@ -46,6 +47,14 @@ export interface AppSettings extends AuditedRecord {
   isPrivacyModeEnabled: boolean;
 }
 
+export interface SecuritySettings extends AuditedRecord {
+  id: typeof CURRENT_RECORD_ID;
+  isPinEnabled: boolean;
+  pinHash: string | null;
+  pinSalt: string | null;
+  passkeyCredentialId: string | null;
+}
+
 export interface AttendanceRecord extends AuditedRecord {
   id: string;
   date: string;
@@ -61,6 +70,33 @@ export interface CompanyTransaction extends AuditedRecord {
   type: CompanyTransactionType;
   amount: number;
   occurredOn: string;
+  note: string;
+}
+
+export interface PocketTransaction extends AuditedRecord {
+  id: string;
+  type: PocketTransactionType;
+  amount: number;
+  occurredOn: string;
+  note: string;
+}
+
+export interface SavingsGoal extends AuditedRecord {
+  id: string;
+  name: string;
+  targetAmount: number;
+  savedAmount: number;
+  targetDate: string | null;
+  note: string;
+}
+
+export interface CareerRecord extends AuditedRecord {
+  id: string;
+  companyName: string;
+  designation: string;
+  startDate: string;
+  endDate: string;
+  monthlySalary: number;
   note: string;
 }
 

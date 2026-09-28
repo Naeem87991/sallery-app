@@ -1,6 +1,6 @@
 import type { SVGProps } from 'react';
 
-export type AppIconName = 'arrow-right' | 'arrow-up-right' | 'building' | 'calendar' | 'chart' | 'dollar' | 'eye' | 'eye-off' | 'file' | 'home' | 'plus' | 'settings' | 'shield' | 'wallet';
+export type AppIconName = 'arrow-right' | 'arrow-up-right' | 'building' | 'calendar' | 'chart' | 'dollar' | 'eye' | 'eye-off' | 'file' | 'home' | 'lock' | 'plus' | 'settings' | 'shield' | 'wallet';
 
 type AppIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
   name: AppIconName;
@@ -27,6 +27,7 @@ const iconPaths: Record<AppIconName, React.ReactNode> = {
   'eye-off': <><path d="m3 3 18 18" /><path d="M10.6 6.7A10.7 10.7 0 0 1 12 6.5c6 0 9.5 5.5 9.5 5.5a16.9 16.9 0 0 1-3.3 3.6M6.2 6.2A16.5 16.5 0 0 0 2.5 12S6 17.5 12 17.5c1.1 0 2.1-.2 3-.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
   file: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></>,
   home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
+  lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></>,
   plus: <><path d="M12 5v14M5 12h14" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 2.1-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.1-2.1.1-.1A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.5-1H5.3v-3h.2A1.7 1.7 0 0 0 7 10a1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.1-2.1.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.1 2.1-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" /></>,
   shield: <><path d="M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></>,

@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { AppLockScreen } from '@/components/security/app-lock-screen';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useSecuritySettings } from '@/hooks/use-security-settings';
+import { getSecuritySessionVersion, subscribeToSecuritySession } from '@/lib/security/session-lock';
 
 type PageKey = 'home' | 'attendance' | 'company' | 'pocket' | 'settings' | 'career' | 'reports';
 
@@ -31,11 +34,16 @@ const secondaryNavigation: NavItem[] = [
 export function AppShell({ children, activePage }: { children: ReactNode; activePage: PageKey }) {
   const pathname = usePathname();
   const { records } = useCurrentAppRecords();
+  const { settings: securitySettings, isLoading: securityLoading } = useSecuritySettings();
+  const securitySessionVersion = useSecuritySessionVersion();
   const [visibilityOverride, setVisibilityOverride] = useState<boolean | null>(null);
   const privacyModeEnabled = Boolean(records?.appSettings?.isPrivacyModeEnabled);
   const financialsVisible = visibilityOverride ?? !privacyModeEnabled;
   const language = records?.appSettings?.language;
   const theme = records?.appSettings?.theme;
+
+  if (securityLoading) return <main className="app-lock-screen"><span className="app-lock-checking">Checking local security…</span></main>;
+  if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) return <AppLockScreen securitySettings={securitySettings} />;
 
   return (
     <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined}>
@@ -45,6 +53,7 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
         <div className="sidebar-divider" />
         <Navigation items={secondaryNavigation} activePage={activePage} pathname={pathname} subtle />
         <div className="sidebar-bottom">
+          <button className="sidebar-privacy-button" type="button" aria-label={financialsVisible ? 'Hide financial values' : 'Show financial values'} aria-pressed={!financialsVisible} onClick={() => setVisibilityOverride(!financialsVisible)}>{financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={15} /> : <AppIcon name="eye-off" aria-hidden="true" size={15} />}{financialsVisible ? 'Hide values' : 'Show values'}</button>
           <div className="offline-indicator"><span className="pulse-dot" />Offline ready</div>
           <p>Private by design<br />Stored on this device</p>
         </div>
@@ -70,6 +79,10 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
       </nav>
     </div>
   );
+}
+
+function useSecuritySessionVersion(): string {
+  return useSyncExternalStore(subscribeToSecuritySession, getSecuritySessionVersion, () => '');
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {

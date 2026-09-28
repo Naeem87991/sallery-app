@@ -4,9 +4,13 @@ import {
   type AppSettings,
   type AttendanceRecord,
   type AttendanceStatus,
+  type CareerRecord,
   type CompanyTransactionType,
   type OnboardingPayload,
+  type PocketTransactionType,
   type SalarySettings,
+  type SavingsGoal,
+  type SecuritySettings,
   type UserProfile,
 } from '@/types/domain';
 
@@ -57,6 +61,54 @@ export async function updateSalarySettings(salarySettings: SalarySettings): Prom
 
 export async function updateAppSettings(appSettings: AppSettings): Promise<void> {
   await db.appSettings.put({ ...appSettings, updatedAt: new Date().toISOString() });
+}
+
+export async function savePinSecurity({ pinHash, pinSalt }: Pick<SecuritySettings, 'pinHash' | 'pinSalt'>): Promise<SecuritySettings> {
+  const now = new Date().toISOString();
+  const existing = await db.securitySettings.get(CURRENT_RECORD_ID);
+  const securitySettings: SecuritySettings = {
+    id: CURRENT_RECORD_ID,
+    isPinEnabled: true,
+    pinHash,
+    pinSalt,
+    passkeyCredentialId: existing?.passkeyCredentialId ?? null,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  await db.securitySettings.put(securitySettings);
+  return securitySettings;
+}
+
+export async function disablePinSecurity(): Promise<SecuritySettings> {
+  const now = new Date().toISOString();
+  const existing = await db.securitySettings.get(CURRENT_RECORD_ID);
+  const securitySettings: SecuritySettings = {
+    id: CURRENT_RECORD_ID,
+    isPinEnabled: false,
+    pinHash: null,
+    pinSalt: null,
+    passkeyCredentialId: null,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+  await db.securitySettings.put(securitySettings);
+  return securitySettings;
+}
+
+export async function savePasskeyCredential(passkeyCredentialId: string): Promise<SecuritySettings> {
+  const existing = await db.securitySettings.get(CURRENT_RECORD_ID);
+  if (!existing?.isPinEnabled) throw new Error('Set a PIN before adding a passkey.');
+  const securitySettings = { ...existing, passkeyCredentialId, updatedAt: new Date().toISOString() };
+  await db.securitySettings.put(securitySettings);
+  return securitySettings;
+}
+
+export async function removePasskeyCredential(): Promise<SecuritySettings> {
+  const existing = await db.securitySettings.get(CURRENT_RECORD_ID);
+  if (!existing) throw new Error('Security settings are not available.');
+  const securitySettings = { ...existing, passkeyCredentialId: null, updatedAt: new Date().toISOString() };
+  await db.securitySettings.put(securitySettings);
+  return securitySettings;
 }
 
 export type AttendanceRecordInput = {
@@ -114,6 +166,48 @@ export async function addCompanyTransaction(input: CompanyTransactionInput): Pro
 
 export async function deleteCompanyTransaction(id: string): Promise<void> {
   await db.companyTransactions.delete(id);
+}
+
+export type PocketTransactionInput = {
+  type: PocketTransactionType;
+  amount: number;
+  occurredOn: string;
+  note: string;
+};
+
+export async function addPocketTransaction(input: PocketTransactionInput): Promise<void> {
+  const now = new Date().toISOString();
+  await db.pocketTransactions.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
+}
+
+export async function deletePocketTransaction(id: string): Promise<void> {
+  await db.pocketTransactions.delete(id);
+}
+
+export type SavingsGoalInput = Pick<SavingsGoal, 'name' | 'targetAmount' | 'savedAmount' | 'targetDate' | 'note'>;
+
+export async function addSavingsGoal(input: SavingsGoalInput): Promise<void> {
+  const now = new Date().toISOString();
+  await db.savingsGoals.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
+}
+
+export async function updateSavingsGoal(goal: SavingsGoal): Promise<void> {
+  await db.savingsGoals.put({ ...goal, updatedAt: new Date().toISOString() });
+}
+
+export async function deleteSavingsGoal(id: string): Promise<void> {
+  await db.savingsGoals.delete(id);
+}
+
+export type CareerRecordInput = Pick<CareerRecord, 'companyName' | 'designation' | 'startDate' | 'endDate' | 'monthlySalary' | 'note'>;
+
+export async function addCareerRecord(input: CareerRecordInput): Promise<void> {
+  const now = new Date().toISOString();
+  await db.careerRecords.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
+}
+
+export async function deleteCareerRecord(id: string): Promise<void> {
+  await db.careerRecords.delete(id);
 }
 
 function createLocalId(): string {
