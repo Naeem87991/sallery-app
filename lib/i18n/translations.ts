@@ -24,6 +24,7 @@ export const translations = {
     availableCompanyCredit: 'Available company credit', companyDeductions: 'Company deductions exceed credits', localLedger: 'Local ledger', credits: 'Credits', deductions: 'Deductions', loansDue: 'Loans due', entries: 'Entries',
     loanTracker: 'Loan tracker', loanTrackerTitle: 'Issue and settle company loans.', newEntry: 'New entry', recentActivity: 'Recent activity',
     estimatedLifetimeEarnings: 'Estimated lifetime earnings', currentRole: 'Current role', pastEmployment: 'Past employment', yourHistory: 'Your history',
+    historicalRoles: 'past roles', fromHistory: 'from history', currentPosition: 'Current position', currentRoleSince: 'current role since', estimatedMonthlySalary: 'estimated monthly salary',
     localReports: 'Local reports', csvReport: 'CSV report', pdfReport: 'PDF report', printableVoucher: 'Printable voucher', downloadCsv: 'Download CSV', downloadPdf: 'Download PDF', downloadVoucher: 'Download voucher',
   },
   ur: {
@@ -49,6 +50,7 @@ export const translations = {
     availableCompanyCredit: 'دستیاب کمپنی کریڈٹ', companyDeductions: 'کمپنی کی کٹوتیاں کریڈٹس سے زیادہ ہیں', localLedger: 'مقامی لیجر', credits: 'کریڈٹس', deductions: 'کٹوتیاں', loansDue: 'واجب الادا قرضے', entries: 'اندراجات',
     loanTracker: 'قرض ٹریکر', loanTrackerTitle: 'کمپنی کے قرضے جاری اور مکمل کریں۔', newEntry: 'نیا اندراج', recentActivity: 'حالیہ سرگرمی',
     estimatedLifetimeEarnings: 'تخمینی زندگی بھر کی آمدنی', currentRole: 'موجودہ عہدہ', pastEmployment: 'گزشتہ ملازمت', yourHistory: 'آپ کی تاریخ',
+    historicalRoles: 'گزشتہ عہدے', fromHistory: 'تاریخ سے', currentPosition: 'موجودہ پوزیشن', currentRoleSince: 'موجودہ عہدہ شروع', estimatedMonthlySalary: 'تخمینی ماہانہ تنخواہ',
     localReports: 'مقامی رپورٹس', csvReport: 'CSV رپورٹ', pdfReport: 'PDF رپورٹ', printableVoucher: 'پرنٹ ایبل واؤچر', downloadCsv: 'CSV ڈاؤن لوڈ کریں', downloadPdf: 'PDF ڈاؤن لوڈ کریں', downloadVoucher: 'واؤچر ڈاؤن لوڈ کریں',
   },
 } as const;
