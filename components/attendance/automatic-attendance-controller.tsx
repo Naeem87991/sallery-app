@@ -16,15 +16,26 @@ export function AutomaticAttendanceController({
   salarySettings?: Pick<SalarySettings, 'autoAttendanceRule' | 'autoAttendanceTime' | 'dutyStart' | 'dutyEnd' | 'weeklyOffDay'>;
   onRecordCreated: (date: string) => void;
 }) {
+  const joiningDate = profile?.joiningDate;
+  const autoAttendanceRule = salarySettings?.autoAttendanceRule;
+  const autoAttendanceTime = salarySettings?.autoAttendanceTime;
+  const dutyStart = salarySettings?.dutyStart;
+  const dutyEnd = salarySettings?.dutyEnd;
+  const weeklyOffDay = salarySettings?.weeklyOffDay;
+
   useEffect(() => {
-    if (!profile || !salarySettings) return;
+    if (!joiningDate || !autoAttendanceRule || !dutyStart || !dutyEnd || weeklyOffDay === undefined) return;
 
     let isActive = true;
     let isChecking = false;
 
     const checkForMissingAttendance = async () => {
       if (document.visibilityState === 'hidden' || isChecking) return;
-      const candidate = getAutomaticAttendanceCandidate({ salarySettings, joiningDate: profile.joiningDate, now: new Date() });
+      const candidate = getAutomaticAttendanceCandidate({
+        salarySettings: { autoAttendanceRule, autoAttendanceTime: autoAttendanceTime ?? null, dutyStart, dutyEnd, weeklyOffDay },
+        joiningDate,
+        now: new Date(),
+      });
       if (!candidate) return;
 
       isChecking = true;
@@ -55,12 +66,12 @@ export function AutomaticAttendanceController({
     };
   }, [
     onRecordCreated,
-    profile?.joiningDate,
-    salarySettings?.autoAttendanceRule,
-    salarySettings?.autoAttendanceTime,
-    salarySettings?.dutyEnd,
-    salarySettings?.dutyStart,
-    salarySettings?.weeklyOffDay,
+    autoAttendanceRule,
+    autoAttendanceTime,
+    dutyEnd,
+    dutyStart,
+    joiningDate,
+    weeklyOffDay,
   ]);
 
   return null;
