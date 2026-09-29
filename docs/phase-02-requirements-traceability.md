@@ -1,0 +1,32 @@
+# Phase 02 — Requirements Traceability Matrix
+
+This matrix makes the original maximum-scope plan testable. `Complete` means the feature is implemented in the current application; `Partial` means that a meaningful subset exists but the stated acceptance criteria are not yet all met; `Planned` means it remains in scope.
+
+| ID | Requirement | Original phase | Current evidence | Status | Closure / acceptance criteria |
+| --- | --- | ---: | --- | --- | --- |
+| R-01 | Preserve and assess the pre-existing prototype before replacement. | 1 | `legacy-prototype/` is retained beside the Next.js application. | Complete | Legacy source remains excluded from the active build. |
+| R-02 | Record product scope, decisions, and unresolved work. | 2–4 | This matrix, the financial-rule register, and the ADR are versioned under `docs/`. | Complete | Documents are reviewed whenever a financial rule or persistence boundary changes. |
+| R-03 | Run as a modern responsive Next.js application. | 5, 8, 41 | App Router pages, responsive shell, mobile navigation, desktop sidebar, and shared CSS are present. | Complete | `npm run build` succeeds and core routes work at mobile and desktop widths. |
+| R-04 | Work offline after installation and provide an offline fallback. | 9 | `app/manifest.ts`, service-worker registration, and `app/offline/page.tsx`. | Complete | Installed app can reopen core shell and local records without a network connection. |
+| R-05 | Keep a typed, versioned local data model. | 10–12 | `types/domain.ts` and Dexie schema versions in `lib/database/database.ts`. | Complete | New persisted fields include a migration and input validation. |
+| R-06 | Validate domain input and local dates/times before storage. | 13 | `lib/validation/domain.ts` validates profile, salary, ledger, attendance, goals, and career records. | Complete | Invalid input is rejected at the repository boundary and during backup restore. |
+| R-07 | Use derived company and pocket balances rather than mutable totals. | 14, 17, 18 | `lib/calculations/company-balance.ts` and `lib/calculations/pocket-balance.ts`. | Complete | A balance can be reproduced solely from its saved transactions. |
+| R-08 | Calculate live salary from configurable monthly/daily rules and shifts. | 15, 23 | `lib/calculations/earnings.ts` and the dashboard ticker. | Complete | Fixed monthly, daily-rate, 30-day, 26-day, calendar-day, weekly-off, and overnight-shift cases are covered. |
+| R-09 | Manage attendance, notes, overtime, and optional automatic marking. | 16, 25, 26 | Attendance page, repository actions, and `lib/attendance/auto-attendance.ts`. | Partial | Add explicit search/filter UX and verify all bulk-edit scenarios. |
+| R-10 | Track company credits, withdrawals, vouchers, advances, deductions, and loans. | 17, 27 | Company transaction model and company ledger UI. | Partial | Add loan records, repayment schedule, and installment status rather than treating a loan as a single ledger type. |
+| R-11 | Track pocket cash, expenses, receipts, Udhaar, and savings goals. | 18, 29, 30 | Pocket transactions and savings goals are persisted and shown in the UI. | Partial | Add categories, receipt attachments, transfers, low-cash alerts, and Udhaar reminders. |
+| R-12 | Protect local records with privacy mode, local PIN, and optional passkey shortcut. | 22, 34 | Privacy toggle, PBKDF2 PIN verifier, session lock, and WebAuthn helper. | Complete | Lock works after a new browser session; PIN and passkey identifiers never enter a backup. |
+| R-13 | Keep current role earnings separate from career history. | 14, 31 | `lib/calculations/career-earnings.ts` and career records. | Complete | Career totals never alter the current salary or company/pocket balance. |
+| R-14 | Export reports in client-side formats. | 32 | `lib/reports/local-exports.ts` and Reports UI. | Complete | PDF, CSV, and voucher-image export generate without a server. |
+| R-15 | Export and restore encrypted local backups safely. | 33 | `lib/backup/local-backup.ts` and backup UI. | Complete | Restore decrypts, validates, previews counts, and requires explicit replacement confirmation. |
+| R-16 | Support English/Urdu preference and RTL. | 35 | Language preference and `dir="rtl"` shell support. | Partial | Translate UI copy and complete visual/assistive-technology RTL QA. |
+| R-17 | Meet accessibility, performance, and offline-resilience targets. | 36, 37 | Skip link, labels, live announcements, reduced rendering work, and offline shell. | Complete | Maintain lint-clean hooks, keyboard use, contrast, and a responsive/offline smoke test. |
+| R-18 | Exercise financial, security, and end-to-end failure cases. | 19, 38, 39 | Vitest calculation and automatic-attendance tests are present. | Partial | Add backup-corruption, lock, destructive-action, and browser workflow tests. |
+| R-19 | Document operation, formulas, data model, backup, and deployment. | 40 | Root `README.md` documents setup, data, security, and backups. | Partial | Add formula examples, recovery runbook, and deployment troubleshooting. |
+| R-20 | Complete release acceptance and publish the app. | 42 | Production deployment is available at `sallery-app.vercel.app`. | Partial | Perform and record the formal release checklist after remaining partial requirements close. |
+
+## Traceability rules
+
+- A requirement may not move from `Partial` to `Complete` without an automated test or a documented manual acceptance check.
+- Financial calculations, schemas, restore validation, and security behavior must reference the corresponding entry in the financial-rule register and ADR when changed.
+- New features must add a matrix entry before their implementation expands persisted data or alters a balance.

@@ -49,3 +49,9 @@ The optional app PIN is stored only as a PBKDF2 hash plus a random salt. A compa
 - `lib/database/` — Dexie schema and repository actions
 - `lib/backup/` and `lib/security/` — encrypted backups and local app lock
 - `types/` — shared domain entities
+
+## Product documentation
+
+- [Requirements traceability](docs/phase-02-requirements-traceability.md)
+- [Financial-rule register](docs/phase-03-financial-rule-register.md)
+- [Architecture decision record](docs/phase-04-architecture-decision-record.md)
