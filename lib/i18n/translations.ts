@@ -21,6 +21,10 @@ export const translations = {
     loadingCareer: 'Loading your local career history…', careerTitle: 'See the long view of your work.', careerSubtitle: 'Past roles are archived here, separately from today’s live salary and personal pocket.',
     loadingReports: 'Preparing your local report data…', reportsTitle: 'Take your records with you.', reportsSubtitle: 'Exports are prepared in your browser from this device’s records. Nothing is sent to a server.',
     setupTitle: 'Set up your workspace first.', setupAttendance: 'Attendance follows the shift and weekly-off rules you choose during setup.', setupCompany: 'Your private company ledger is ready after local salary setup.', setupCareer: 'Your current role provides the starting point for a private employment history.', setupReports: 'Reports use the private records created after local salary setup.',
+    availableCompanyCredit: 'Available company credit', companyDeductions: 'Company deductions exceed credits', localLedger: 'Local ledger', credits: 'Credits', deductions: 'Deductions', loansDue: 'Loans due', entries: 'Entries',
+    loanTracker: 'Loan tracker', loanTrackerTitle: 'Issue and settle company loans.', newEntry: 'New entry', recentActivity: 'Recent activity',
+    estimatedLifetimeEarnings: 'Estimated lifetime earnings', currentRole: 'Current role', pastEmployment: 'Past employment', yourHistory: 'Your history',
+    localReports: 'Local reports', csvReport: 'CSV report', pdfReport: 'PDF report', printableVoucher: 'Printable voucher', downloadCsv: 'Download CSV', downloadPdf: 'Download PDF', downloadVoucher: 'Download voucher',
   },
   ur: {
     home: 'ہوم', attendance: 'حاضری', company: 'کمپنی', pocket: 'ذاتی رقم', settings: 'ترتیبات', careerHistory: 'کیریئر کی تاریخ', reports: 'رپورٹس',
@@ -42,6 +46,10 @@ export const translations = {
     loadingCareer: 'آپ کی مقامی کیریئر تاریخ لوڈ ہو رہی ہے…', careerTitle: 'اپنے کام کی طویل تصویر دیکھیں۔', careerSubtitle: 'گزشتہ عہدے یہاں محفوظ رہتے ہیں، آج کی تنخواہ اور ذاتی رقم سے الگ۔',
     loadingReports: 'آپ کا مقامی رپورٹ ڈیٹا تیار ہو رہا ہے…', reportsTitle: 'اپنے ریکارڈ ساتھ لے جائیں۔', reportsSubtitle: 'ایکسپورٹس اسی ڈیوائس کے ریکارڈ سے آپ کے براؤزر میں بنتی ہیں۔ کچھ سرور پر نہیں جاتا۔',
     setupTitle: 'پہلے اپنا ورک اسپیس سیٹ اپ کریں۔', setupAttendance: 'حاضری سیٹ اپ میں منتخب کی گئی شفٹ اور ہفتہ وار چھٹی کے اصولوں پر چلتی ہے۔', setupCompany: 'مقامی تنخواہ سیٹ اپ کے بعد آپ کا نجی کمپنی لیجر تیار ہے۔', setupCareer: 'آپ کا موجودہ عہدہ نجی ملازمت کی تاریخ کے لیے نقطۂ آغاز ہے۔', setupReports: 'رپورٹس مقامی تنخواہ سیٹ اپ کے بعد بنائے گئے نجی ریکارڈ استعمال کرتی ہیں۔',
+    availableCompanyCredit: 'دستیاب کمپنی کریڈٹ', companyDeductions: 'کمپنی کی کٹوتیاں کریڈٹس سے زیادہ ہیں', localLedger: 'مقامی لیجر', credits: 'کریڈٹس', deductions: 'کٹوتیاں', loansDue: 'واجب الادا قرضے', entries: 'اندراجات',
+    loanTracker: 'قرض ٹریکر', loanTrackerTitle: 'کمپنی کے قرضے جاری اور مکمل کریں۔', newEntry: 'نیا اندراج', recentActivity: 'حالیہ سرگرمی',
+    estimatedLifetimeEarnings: 'تخمینی زندگی بھر کی آمدنی', currentRole: 'موجودہ عہدہ', pastEmployment: 'گزشتہ ملازمت', yourHistory: 'آپ کی تاریخ',
+    localReports: 'مقامی رپورٹس', csvReport: 'CSV رپورٹ', pdfReport: 'PDF رپورٹ', printableVoucher: 'پرنٹ ایبل واؤچر', downloadCsv: 'CSV ڈاؤن لوڈ کریں', downloadPdf: 'PDF ڈاؤن لوڈ کریں', downloadVoucher: 'واؤچر ڈاؤن لوڈ کریں',
   },
 } as const;
 
