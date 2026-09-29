@@ -11,10 +11,14 @@ export function getMonthValue(date = new Date()): string {
 
 export function formatMonth(value: string): string {
   const [year, month] = value.split('-').map(Number);
-  return new Intl.DateTimeFormat('en-PK', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
+  return new Intl.DateTimeFormat(getFormattingLocale(), { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
 }
 
 export function formatDate(value: string): string {
   const [year, month, day] = value.split('-').map(Number);
-  return new Intl.DateTimeFormat('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(year, month - 1, day));
+  return new Intl.DateTimeFormat(getFormattingLocale(), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(year, month - 1, day));
+}
+
+function getFormattingLocale(): string {
+  return typeof document !== 'undefined' && document.documentElement.lang === 'ur' ? 'ur-PK' : 'en-PK';
 }
