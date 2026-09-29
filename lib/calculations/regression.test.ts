@@ -4,7 +4,7 @@ import { calculateCareerRecordEarnings, calculateCurrentRoleEarnings, getCareerL
 import { getCompanyBalance, getCompanyLoanSnapshots, getTotalLoanOutstanding } from '@/lib/calculations/company-balance';
 import { calculateDailyRate, calculateLiveEarnings } from '@/lib/calculations/earnings';
 import { getPocketBalance } from '@/lib/calculations/pocket-balance';
-import { assertSalaryRules, isValidLocalDate } from '@/lib/validation/domain';
+import { assertPocketTransactionInput, assertSalaryRules, isValidLocalDate } from '@/lib/validation/domain';
 import type { CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings } from '@/types/domain';
 
 const audit = { createdAt: '2025-01-01T00:00:00.000Z', updatedAt: '2025-01-01T00:00:00.000Z' };
@@ -35,7 +35,7 @@ function companyTransaction(type: CompanyTransaction['type'], amount: number): C
 }
 
 function pocketTransaction(type: PocketTransaction['type'], amount: number): PocketTransaction {
-  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '' };
+  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '', category: 'other', receiptDataUrl: null };
 }
 
 function careerRecord(startDate: string, endDate: string, monthlySalary = 30_000): CareerRecord {
@@ -107,5 +107,12 @@ describe('local date validation', () => {
   it('rejects calendar overflows before they reach storage', () => {
     expect(isValidLocalDate('2024-02-29')).toBe(true);
     expect(isValidLocalDate('2025-02-29')).toBe(false);
+  });
+});
+
+describe('pocket receipt validation', () => {
+  it('accepts a supported small receipt image and rejects unsafe receipt data', () => {
+    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:image/png;base64,AA==' })).not.toThrow();
+    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:text/plain;base64,AA==' })).toThrow('Receipt image');
   });
 });

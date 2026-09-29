@@ -42,11 +42,11 @@ function todayStamp(): string {
 
 export function downloadCsvReport(data: LocalReportData): void {
   const rows = [
-    csvRow(['Section', 'Date', 'Type', 'Description', 'Amount (PKR)', 'Direction']),
-    ...data.companyTransactions.map((transaction) => csvRow(['Company ledger', transaction.occurredOn, transaction.type, transaction.note, transaction.amount, transaction.type === 'credit' ? 'In' : 'Out'])),
-    ...data.pocketTransactions.map((transaction) => csvRow(['Personal pocket', transaction.occurredOn, transaction.type, transaction.note, transaction.amount, ['expense', 'udhaar-given'].includes(transaction.type) ? 'Out' : 'In'])),
-    ...data.careerRecords.map((record) => csvRow(['Career history', `${record.startDate} to ${record.endDate}`, record.designation, `${record.companyName}${record.note ? ` — ${record.note}` : ''}`, record.monthlySalary, 'Monthly salary'])),
-    ...data.savingsGoals.map((goal) => csvRow(['Savings goal', goal.targetDate ?? '', 'Goal', goal.name, goal.savedAmount, `Saved of ${goal.targetAmount}`])),
+    csvRow(['Section', 'Date', 'Type', 'Category', 'Description', 'Amount (PKR)', 'Direction', 'Receipt attached']),
+    ...data.companyTransactions.map((transaction) => csvRow(['Company ledger', transaction.occurredOn, transaction.type, '', transaction.note, transaction.amount, transaction.type === 'credit' ? 'In' : 'Out', 'No'])),
+    ...data.pocketTransactions.map((transaction) => csvRow(['Personal pocket', transaction.occurredOn, transaction.type, transaction.category, transaction.note, transaction.amount, ['expense', 'udhaar-given'].includes(transaction.type) ? 'Out' : 'In', transaction.receiptDataUrl ? 'Yes' : 'No'])),
+    ...data.careerRecords.map((record) => csvRow(['Career history', `${record.startDate} to ${record.endDate}`, record.designation, '', `${record.companyName}${record.note ? ` — ${record.note}` : ''}`, record.monthlySalary, 'Monthly salary', 'No'])),
+    ...data.savingsGoals.map((goal) => csvRow(['Savings goal', goal.targetDate ?? '', 'Goal', '', goal.name, goal.savedAmount, `Saved of ${goal.targetAmount}`, 'No'])),
   ];
   downloadBlob(new Blob([`\uFEFF${rows.join('\n')}\n`], { type: 'text/csv;charset=utf-8' }), `salary-workspace-${todayStamp()}.csv`);
 }

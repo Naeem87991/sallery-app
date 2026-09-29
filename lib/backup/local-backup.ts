@@ -3,7 +3,7 @@ import 'client-only';
 import { DATABASE_SCHEMA_VERSION, db } from '@/lib/database/database';
 import { base64ToBytes, bytesToBase64, toArrayBuffer } from '@/lib/security/pin';
 import { assertAppPreferences, assertAttendanceInput, assertCareerRecordInput, assertCompanyLoanInput, assertCompanyTransactionInput, assertPocketTransactionInput, assertProfile, assertSalaryRules, assertSavingsGoalInput } from '@/lib/validation/domain';
-import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
+import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketCategory, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
 
 const BACKUP_KIND = 'live-salary-ticker-encrypted-backup';
 const BACKUP_FORMAT_VERSION = 1;
@@ -150,12 +150,13 @@ function validateEnvelope(input: unknown): EncryptedBackupEnvelope {
 function validateBackupPayload(input: unknown): DecryptedBackup {
   const record = asRecord(input, 'The decrypted content is not a Live Salary Ticker backup.');
   if (record.kind !== 'live-salary-ticker-backup' || record.formatVersion !== 1 || !isString(record.createdAt) || !isFiniteNumber(record.databaseSchemaVersion) || record.databaseSchemaVersion < 1) throw new Error('The backup schema is invalid.');
-  if (record.databaseSchemaVersion > DATABASE_SCHEMA_VERSION) throw new Error('This backup was created by a newer app version and cannot be restored safely here.');
+  const databaseSchemaVersion = record.databaseSchemaVersion;
+  if (databaseSchemaVersion > DATABASE_SCHEMA_VERSION) throw new Error('This backup was created by a newer app version and cannot be restored safely here.');
   const data = asRecord(record.data, 'The backup has no data section.');
   const backup: DecryptedBackup = {
-    kind: 'live-salary-ticker-backup', formatVersion: 1, createdAt: record.createdAt, databaseSchemaVersion: record.databaseSchemaVersion,
+    kind: 'live-salary-ticker-backup', formatVersion: 1, createdAt: record.createdAt, databaseSchemaVersion,
     data: {
-      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, validateAppSettings), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), companyLoans: data.companyLoans === undefined && record.databaseSchemaVersion < 5 ? [] : validateArray(data.companyLoans, validateCompanyLoan), pocketTransactions: validateArray(data.pocketTransactions, validatePocketTransaction), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
+      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, validateAppSettings), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), companyLoans: data.companyLoans === undefined && databaseSchemaVersion < 5 ? [] : validateArray(data.companyLoans, validateCompanyLoan), pocketTransactions: validateArray(data.pocketTransactions, (value) => validatePocketTransaction(value, databaseSchemaVersion < 6)), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
     },
   };
   Object.values(backup.data).forEach(assertUniqueIds);
@@ -212,10 +213,10 @@ function validateCompanyLoan(input: unknown): CompanyLoan {
   return loan;
 }
 
-function validatePocketTransaction(input: unknown): PocketTransaction {
+function validatePocketTransaction(input: unknown, allowLegacyFields: boolean): PocketTransaction {
   const record = validateAudited(input, 'pocket transaction');
-  if (!isString(record.id) || !isOneOf(record.type, ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note)) throw new Error('A pocket transaction is invalid.');
-  const pocketTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  if (!isString(record.id) || !isOneOf(record.type, ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note) || (!allowLegacyFields && (!isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) || !isNullableString(record.receiptDataUrl))) || (allowLegacyFields && ((record.category !== undefined && !isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other'])) || (record.receiptDataUrl !== undefined && !isNullableString(record.receiptDataUrl))))) throw new Error('A pocket transaction is invalid.');
+  const pocketTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, category: (isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) ? record.category : 'other') as PocketCategory, receiptDataUrl: isString(record.receiptDataUrl) ? record.receiptDataUrl : null, createdAt: record.createdAt, updatedAt: record.updatedAt };
   assertPocketTransactionInput(pocketTransaction);
   return pocketTransaction;
 }

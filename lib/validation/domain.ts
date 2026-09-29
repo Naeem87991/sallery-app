@@ -1,10 +1,12 @@
-import type { AppSettings, AttendanceRecord, AttendanceStatus, CareerRecord, CompanyLoan, CompanyTransactionType, OnboardingPayload, PocketTransactionType, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
+import type { AppSettings, AttendanceRecord, AttendanceStatus, CareerRecord, CompanyLoan, CompanyTransactionType, OnboardingPayload, PocketCategory, PocketTransactionType, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
 
 const localDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 const localTimePattern = /^(\d{2}):(\d{2})$/;
 const attendanceStatuses: AttendanceStatus[] = ['present', 'absent', 'half-day', 'leave', 'weekly-off'];
 const companyTransactionTypes: CompanyTransactionType[] = ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'loan-repayment', 'deduction'];
 const pocketTransactionTypes: PocketTransactionType[] = ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received'];
+export const pocketCategories: PocketCategory[] = ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other'];
+export const MAX_RECEIPT_DATA_URL_LENGTH = 1_400_000;
 
 export function isValidLocalDate(value: string): boolean {
   const match = localDatePattern.exec(value);
@@ -79,11 +81,13 @@ export function assertCompanyLoanInput(input: Pick<CompanyLoan, 'name' | 'princi
   assertTextLength(input.note, 140, 'Loan note');
 }
 
-export function assertPocketTransactionInput(input: { type: PocketTransactionType; amount: number; occurredOn: string; note: string }): void {
+export function assertPocketTransactionInput(input: { type: PocketTransactionType; amount: number; occurredOn: string; note: string; category: PocketCategory; receiptDataUrl: string | null }): void {
   assert(pocketTransactionTypes.includes(input.type), 'Pocket entry type is invalid.');
   assert(isFinitePositive(input.amount), 'Pocket entry amount must be greater than zero.');
   assert(isValidLocalDate(input.occurredOn), 'Pocket entry date is invalid.');
   assertTextLength(input.note, 140, 'Pocket entry note');
+  assert(pocketCategories.includes(input.category), 'Pocket entry category is invalid.');
+  assert(input.receiptDataUrl === null || (isSupportedReceiptDataUrl(input.receiptDataUrl) && input.receiptDataUrl.length <= MAX_RECEIPT_DATA_URL_LENGTH), 'Receipt image is invalid or too large.');
 }
 
 export function assertSavingsGoalInput(input: Pick<SavingsGoal, 'name' | 'targetAmount' | 'savedAmount' | 'targetDate' | 'note'>): void {
@@ -108,6 +112,10 @@ function isFinitePositive(value: number | null): value is number {
 
 function assertTextLength(value: string, maxLength: number, label: string): void {
   assert(typeof value === 'string' && value.length <= maxLength, `${label} is too long.`);
+}
+
+function isSupportedReceiptDataUrl(value: string): boolean {
+  return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
 }
 
 function assert(condition: unknown, message: string): asserts condition {

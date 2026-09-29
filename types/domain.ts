@@ -8,6 +8,7 @@ export type AppLanguage = 'en' | 'ur';
 export type AttendanceStatus = 'present' | 'absent' | 'half-day' | 'leave' | 'weekly-off';
 export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'loan-repayment' | 'deduction';
 export type PocketTransactionType = 'cash-in' | 'expense' | 'receipt' | 'udhaar-given' | 'udhaar-received';
+export type PocketCategory = 'income' | 'food' | 'transport' | 'bills' | 'shopping' | 'health' | 'education' | 'family' | 'entertainment' | 'other';
 
 export interface AuditedRecord {
   createdAt: string;
@@ -88,6 +89,8 @@ export interface PocketTransaction extends AuditedRecord {
   amount: number;
   occurredOn: string;
   note: string;
+  category: PocketCategory;
+  receiptDataUrl: string | null;
 }
 
 export interface SavingsGoal extends AuditedRecord {

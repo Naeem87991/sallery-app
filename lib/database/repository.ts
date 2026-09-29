@@ -23,6 +23,7 @@ import {
   type CompanyTransactionType,
   type OnboardingPayload,
   type PocketTransactionType,
+  type PocketCategory,
   type SalarySettings,
   type SavingsGoal,
   type SecuritySettings,
@@ -249,6 +250,8 @@ export type PocketTransactionInput = {
   amount: number;
   occurredOn: string;
   note: string;
+  category: PocketCategory;
+  receiptDataUrl: string | null;
 };
 
 export async function addPocketTransaction(input: PocketTransactionInput): Promise<void> {
