@@ -10,6 +10,7 @@ import { calculateLiveEarnings, type LiveEarningsSnapshot } from '@/lib/calculat
 import { getCompanyBalance } from '@/lib/calculations/company-balance';
 import { getPocketBalance } from '@/lib/calculations/pocket-balance';
 import { formatCurrency, formatCurrencyAmount } from '@/lib/formatting/currency';
+import { useAppTranslation } from '@/hooks/use-app-translation';
 
 const checklist = [
   ['Create your profile', 'Name, employee ID, and designation'],
@@ -18,6 +19,7 @@ const checklist = [
 ];
 
 export function DashboardContent() {
+  const { t } = useAppTranslation();
   const { records, isLoading, isOnboarded } = useCurrentAppRecords();
   const { transactions, isLoading: companyLoading } = useCompanyTransactions();
   const { transactions: pocketTransactions, isLoading: pocketLoading } = usePocketRecords();
@@ -40,8 +42,8 @@ export function DashboardContent() {
         <div className="profile-heading-copy">
           <span className="profile-avatar" aria-hidden="true">{profile.firstName.slice(0, 1).toUpperCase()}</span>
           <div>
-            <p className="eyebrow">PRIVATE FINANCE WORKSPACE</p>
-            <h1>Welcome, {profile.firstName}.</h1>
+            <p className="eyebrow">{t('privateWorkspace')}</p>
+            <h1>{t('welcome')}, {profile.firstName}.</h1>
             <p className="page-subtitle">{profile.designation} · ID {profile.employeeId}</p>
           </div>
         </div>
@@ -57,13 +59,13 @@ export function DashboardContent() {
       </section>
 
       <section className="overview-grid" aria-label="Salary configuration overview">
-        <Link className="metric-card metric-card-link" href="/company"><div className="metric-icon company-icon"><AppIcon name="building" aria-hidden="true" size={20} /></div><div><p>Company balance</p><strong>{companyLoading ? 'PKR —' : formatCurrency(companyBalance)}</strong><span>{companyBalance < 0 ? 'Deductions exceed credits' : 'Available credit'}</span></div></Link>
-        <Link className="metric-card metric-card-link" href="/pocket"><div className="metric-icon pocket-icon"><AppIcon name="wallet" aria-hidden="true" size={20} /></div><div><p>Personal pocket</p><strong>{pocketLoading ? 'PKR —' : formatCurrency(pocketBalance)}</strong><span>{pocketBalance < 0 ? 'Outgoing entries exceed cash in' : 'Local personal cash'}</span></div></Link>
-        <article className="metric-card"><div className="metric-icon company-icon"><AppIcon name="dollar" aria-hidden="true" size={20} /></div><div><p>Base salary</p><strong>{formatCurrency(salaryAmount)}</strong><span>{salarySettings.salaryMode === 'fixed-monthly' ? 'Per month' : 'Per day'}</span></div></article>
+        <Link className="metric-card metric-card-link" href="/company"><div className="metric-icon company-icon"><AppIcon name="building" aria-hidden="true" size={20} /></div><div><p>{t('companyBalance')}</p><strong>{companyLoading ? 'PKR —' : formatCurrency(companyBalance)}</strong><span>{companyBalance < 0 ? 'Deductions exceed credits' : t('availableCredit')}</span></div></Link>
+        <Link className="metric-card metric-card-link" href="/pocket"><div className="metric-icon pocket-icon"><AppIcon name="wallet" aria-hidden="true" size={20} /></div><div><p>{t('personalPocket')}</p><strong>{pocketLoading ? 'PKR —' : formatCurrency(pocketBalance)}</strong><span>{pocketBalance < 0 ? 'Outgoing entries exceed cash in' : 'Local personal cash'}</span></div></Link>
+        <article className="metric-card"><div className="metric-icon company-icon"><AppIcon name="dollar" aria-hidden="true" size={20} /></div><div><p>{t('baseSalary')}</p><strong>{formatCurrency(salaryAmount)}</strong><span>{salarySettings.salaryMode === 'fixed-monthly' ? t('perMonth') : t('perDay')}</span></div></article>
         <article className="metric-card"><div className="metric-icon pocket-icon"><AppIcon name="wallet" aria-hidden="true" size={20} /></div><div><p>Today&apos;s scheduled pay</p><strong>{liveEarnings ? formatCurrency(liveEarnings.dailyRate) : 'PKR —'}</strong><span>{salarySettings.isWeeklyOffPaid ? 'Weekly off is paid' : 'Weekly off is unpaid'}</span></div></article>
       </section>
 
-      <section className="content-panel next-phase-panel" aria-labelledby="next-title"><div className="panel-heading"><div><p className="eyebrow">LIVE NOW</p><h2 id="next-title">Your private workspace is complete.</h2></div><span className="progress-label">Phases 4–8 active</span></div><p>Track work, company money, personal cash, savings, career history, and local exports from one offline-first workspace.</p><Link className="secondary-button" href="/reports">Open reports <AppIcon name="arrow-right" aria-hidden="true" size={16} /></Link></section>
+      <section className="content-panel next-phase-panel" aria-labelledby="next-title"><div className="panel-heading"><div><p className="eyebrow">LIVE NOW</p><h2 id="next-title">Your private workspace is complete.</h2></div><span className="progress-label">Phases 4–8 active</span></div><p>Track work, company money, personal cash, savings, career history, and local exports from one offline-first workspace.</p><Link className="secondary-button" href="/reports">{t('openReports')} <AppIcon name="arrow-right" aria-hidden="true" size={16} /></Link></section>
     </>
   );
 }

@@ -6,6 +6,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useAttendanceRecords } from '@/hooks/use-attendance-records';
 import { findNextUnrecordedWorkday } from '@/lib/attendance/attendance-workflows';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useAppTranslation } from '@/hooks/use-app-translation';
 import { fillWorkdaysForMonth, saveAttendanceRecord } from '@/lib/database/repository';
 import { formatDate, formatMonth, getLocalDateValue, getMonthValue } from '@/lib/formatting/date';
 import type { AttendanceRecord, AttendanceStatus, SalarySettings } from '@/types/domain';
@@ -20,6 +21,7 @@ const statusLabels: Record<AttendanceStatus, string> = {
 };
 
 export function AttendanceContent() {
+  const { t } = useAppTranslation();
   const { records: appRecords, isLoading, isOnboarded } = useCurrentAppRecords();
   const [month, setMonth] = useState(getMonthValue);
   const [selectedDate, setSelectedDate] = useState(getLocalDateValue);
@@ -29,7 +31,7 @@ export function AttendanceContent() {
   const profile = appRecords?.profile;
   const salarySettings = appRecords?.salarySettings;
 
-  if (isLoading || attendanceLoading) return <section className="dashboard-loading" aria-live="polite">Loading your local attendance…</section>;
+  if (isLoading || attendanceLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingAttendance')}</section>;
   if (!isOnboarded || !profile || !salarySettings) return <SetupRequired />;
 
   const recordByDate = new Map(records.map((record) => [record.date, record]));
@@ -61,7 +63,7 @@ export function AttendanceContent() {
 
   return (
     <section className="attendance-page">
-      <header className="page-heading"><div><p className="eyebrow">ATTENDANCE</p><h1>Your time, on record.</h1><p className="page-subtitle">Mark each day your way. Automatic defaults never replace what you record yourself.</p></div></header>
+      <header className="page-heading"><div><p className="eyebrow">{t('attendancePage')}</p><h1>{t('attendanceTitle')}</h1><p className="page-subtitle">{t('attendanceSubtitle')}</p></div></header>
       <div className="attendance-summary" aria-label="Monthly attendance summary"><SummaryCard label="Recorded" value={String(records.length)} detail="days this month" /><SummaryCard label="Present" value={String(stats.present)} detail="full days" /><SummaryCard label="Time off" value={String(stats.absent + stats.leave)} detail="absent or leave" /><SummaryCard label="Overtime" value={formatOvertime(stats.overtimeMinutes)} detail="recorded" /></div>
       <section className="attendance-calendar-section">
         <div className="calendar-toolbar"><div><p className="eyebrow">MONTH VIEW</p><h2>{formatMonth(month)}</h2></div><div className="calendar-controls"><button className="icon-button" type="button" aria-label="Previous month" onClick={() => goToMonth(-1)}>←</button><button className="secondary-button" type="button" onClick={() => { setMonth(getMonthValue()); setSelectedDate(getLocalDateValue()); setBulkStatus(''); }}>Today</button><button className="icon-button" type="button" aria-label="Next month" onClick={() => goToMonth(1)}>→</button></div></div>

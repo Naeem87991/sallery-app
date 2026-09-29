@@ -6,6 +6,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useCompanyLoans } from '@/hooks/use-company-loans';
 import { useCompanyTransactions } from '@/hooks/use-company-transactions';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useAppTranslation } from '@/hooks/use-app-translation';
 import { getCompanyBalance, getCompanyLoanSnapshots, getTotalLoanOutstanding, isCompanyDebit, type CompanyLoanSnapshot } from '@/lib/calculations/company-balance';
 import { addCompanyLoan, addCompanyLoanRepayment, addCompanyTransaction, deleteCompanyTransaction } from '@/lib/database/repository';
 import { formatCurrency } from '@/lib/formatting/currency';
@@ -17,10 +18,11 @@ const manualTransactionTypes = ['credit', 'withdrawal', 'voucher', 'advance', 'd
 type ManualCompanyTransactionType = typeof manualTransactionTypes[number];
 
 export function CompanyContent() {
+  const { t } = useAppTranslation();
   const { isLoading, isOnboarded } = useCurrentAppRecords();
   const { transactions, isLoading: transactionsLoading } = useCompanyTransactions();
   const { loans, isLoading: loansLoading } = useCompanyLoans();
-  if (isLoading || transactionsLoading || loansLoading) return <section className="dashboard-loading" aria-live="polite">Loading your local company ledger…</section>;
+  if (isLoading || transactionsLoading || loansLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingCompany')}</section>;
   if (!isOnboarded) return <SetupRequired />;
 
   const balance = getCompanyBalance(transactions);

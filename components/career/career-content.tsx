@@ -9,13 +9,15 @@ import { formatCurrency } from '@/lib/formatting/currency';
 import { formatDate } from '@/lib/formatting/date';
 import { useCareerRecords } from '@/hooks/use-career-records';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useAppTranslation } from '@/hooks/use-app-translation';
 import type { CareerRecord } from '@/types/domain';
 
 export function CareerContent() {
+  const { t } = useAppTranslation();
   const { records: appRecords, isLoading, isOnboarded } = useCurrentAppRecords();
   const { records, isLoading: recordsLoading } = useCareerRecords();
   const today = useToday();
-  if (isLoading || recordsLoading) return <section className="dashboard-loading" aria-live="polite">Loading your local career history…</section>;
+  if (isLoading || recordsLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingCareer')}</section>;
   const profile = appRecords?.profile;
   const salarySettings = appRecords?.salarySettings;
   if (!isOnboarded || !profile || !salarySettings) return <SetupRequired />;

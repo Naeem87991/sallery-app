@@ -12,9 +12,11 @@ import { useAllAttendanceRecords } from '@/hooks/use-all-attendance-records';
 import { useCareerRecords } from '@/hooks/use-career-records';
 import { useCompanyTransactions } from '@/hooks/use-company-transactions';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useAppTranslation } from '@/hooks/use-app-translation';
 import { usePocketRecords } from '@/hooks/use-pocket-records';
 
 export function ReportsContent() {
+  const { t } = useAppTranslation();
   const { records: appRecords, isLoading, isOnboarded } = useCurrentAppRecords();
   const { records: attendance, isLoading: attendanceLoading } = useAllAttendanceRecords();
   const { transactions: companyTransactions, isLoading: companyLoading } = useCompanyTransactions();
@@ -29,7 +31,7 @@ export function ReportsContent() {
   const reportTemplate = useMemo<Omit<LocalReportData, 'generatedOn' | 'lifetimeEarnings'> | null>(() => profile ? ({ profile, attendance, companyTransactions, pocketTransactions, savingsGoals, careerRecords, companyBalance: getCompanyBalance(companyTransactions), pocketBalance: getPocketBalance(pocketTransactions) }) : null, [attendance, careerRecords, companyTransactions, pocketTransactions, profile, savingsGoals]);
   const selectedVoucher = companyTransactions.find((transaction) => transaction.id === voucherId) ?? companyTransactions[0];
 
-  if (isLoading || attendanceLoading || companyLoading || pocketLoading || careerLoading) return <section className="dashboard-loading" aria-live="polite">Preparing your local report data…</section>;
+  if (isLoading || attendanceLoading || companyLoading || pocketLoading || careerLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingReports')}</section>;
   if (!isOnboarded || !profile || !salarySettings || !reportTemplate) return <SetupRequired />;
 
   const createReport = (): LocalReportData => {
