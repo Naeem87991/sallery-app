@@ -3,6 +3,7 @@ import {
   assertAppPreferences,
   assertAttendanceInput,
   assertCareerRecordInput,
+  assertCompanyLoanInput,
   assertCompanyTransactionInput,
   assertOnboardingPayload,
   assertPocketTransactionInput,
@@ -17,6 +18,8 @@ import {
   type AttendanceRecord,
   type AttendanceStatus,
   type CareerRecord,
+  type CompanyLoan,
+  type CompanyTransaction,
   type CompanyTransactionType,
   type OnboardingPayload,
   type PocketTransactionType,
@@ -196,11 +199,49 @@ export type CompanyTransactionInput = {
 export async function addCompanyTransaction(input: CompanyTransactionInput): Promise<void> {
   assertCompanyTransactionInput(input);
   const now = new Date().toISOString();
-  await db.companyTransactions.add({ id: createLocalId(), ...input, createdAt: now, updatedAt: now });
+  await db.companyTransactions.add({ id: createLocalId(), ...input, loanId: null, createdAt: now, updatedAt: now });
 }
 
 export async function deleteCompanyTransaction(id: string): Promise<void> {
-  await db.companyTransactions.delete(id);
+  await db.transaction('rw', db.companyTransactions, db.companyLoans, async () => {
+    const transaction = await db.companyTransactions.get(id);
+    if (!transaction) return;
+    if (transaction.type === 'loan' && transaction.loanId) {
+      await db.companyTransactions.where('loanId').equals(transaction.loanId).delete();
+      await db.companyLoans.delete(transaction.loanId);
+      return;
+    }
+    await db.companyTransactions.delete(id);
+  });
+}
+
+export type CompanyLoanInput = Pick<CompanyLoan, 'name' | 'principalAmount' | 'issuedOn' | 'note'>;
+
+export async function addCompanyLoan(input: CompanyLoanInput): Promise<void> {
+  assertCompanyLoanInput(input);
+  const now = new Date().toISOString();
+  const loanId = createLocalId();
+  await db.transaction('rw', db.companyLoans, db.companyTransactions, async () => {
+    await db.companyLoans.add({ id: loanId, ...input, createdAt: now, updatedAt: now });
+    await db.companyTransactions.add({ id: createLocalId(), type: 'loan', amount: input.principalAmount, occurredOn: input.issuedOn, note: input.note || input.name, loanId, createdAt: now, updatedAt: now });
+  });
+}
+
+export type CompanyLoanRepaymentInput = Pick<CompanyTransaction, 'loanId' | 'amount' | 'occurredOn' | 'note'>;
+
+export async function addCompanyLoanRepayment(input: CompanyLoanRepaymentInput): Promise<void> {
+  const loanId = input.loanId;
+  if (!loanId) throw new Error('Choose a loan to repay.');
+  assertCompanyTransactionInput({ type: 'loan-repayment', amount: input.amount, occurredOn: input.occurredOn, note: input.note });
+  await db.transaction('rw', db.companyLoans, db.companyTransactions, async () => {
+    const loan = await db.companyLoans.get(loanId);
+    if (!loan) throw new Error('This loan no longer exists.');
+    const repayments = await db.companyTransactions.where('loanId').equals(loanId).and((transaction) => transaction.type === 'loan-repayment').toArray();
+    const repaidAmount = repayments.reduce((total, repayment) => total + repayment.amount, 0);
+    if (input.amount > loan.principalAmount - repaidAmount) throw new Error('Repayment cannot exceed the outstanding loan amount.');
+    const now = new Date().toISOString();
+    await db.companyTransactions.add({ id: createLocalId(), type: 'loan-repayment', ...input, loanId, note: input.note.trim() || `Repayment for ${loan.name}`, createdAt: now, updatedAt: now });
+  });
 }
 
 export type PocketTransactionInput = {

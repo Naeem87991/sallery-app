@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { calculateCareerRecordEarnings, calculateCurrentRoleEarnings, getCareerLifetimeEarnings } from '@/lib/calculations/career-earnings';
-import { getCompanyBalance } from '@/lib/calculations/company-balance';
+import { getCompanyBalance, getCompanyLoanSnapshots, getTotalLoanOutstanding } from '@/lib/calculations/company-balance';
 import { calculateDailyRate, calculateLiveEarnings } from '@/lib/calculations/earnings';
 import { getPocketBalance } from '@/lib/calculations/pocket-balance';
 import { assertSalaryRules, isValidLocalDate } from '@/lib/validation/domain';
-import type { CareerRecord, CompanyTransaction, PocketTransaction, SalarySettings } from '@/types/domain';
+import type { CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings } from '@/types/domain';
 
 const audit = { createdAt: '2025-01-01T00:00:00.000Z', updatedAt: '2025-01-01T00:00:00.000Z' };
 
@@ -31,7 +31,7 @@ function salarySettings(overrides: Partial<SalarySettings> = {}): SalarySettings
 }
 
 function companyTransaction(type: CompanyTransaction['type'], amount: number): CompanyTransaction {
-  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '' };
+  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '', loanId: null };
 }
 
 function pocketTransaction(type: PocketTransaction['type'], amount: number): PocketTransaction {
@@ -71,6 +71,15 @@ describe('ledger calculations', () => {
       companyTransaction('advance', 1_500),
       companyTransaction('voucher', 500),
     ])).toBe(3_000);
+  });
+
+  it('derives loan repayment and outstanding balances from linked ledger records', () => {
+    const loan: CompanyLoan = { ...audit, id: 'loan-1', name: 'Laptop advance', principalAmount: 10_000, issuedOn: '2025-01-01', note: '' };
+    const repayment = { ...companyTransaction('loan-repayment', 2_500), id: 'repayment-1', loanId: loan.id };
+    const snapshots = getCompanyLoanSnapshots([loan], [repayment]);
+
+    expect(snapshots[0]).toMatchObject({ repaidAmount: 2_500, outstandingAmount: 7_500, isSettled: false });
+    expect(getTotalLoanOutstanding([loan], [repayment])).toBe(7_500);
   });
 
   it('keeps Udhaar and expenses on the debit side of the personal pocket', () => {

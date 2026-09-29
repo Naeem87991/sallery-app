@@ -1,8 +1,8 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { AppSettings, AttendanceRecord, CareerRecord, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, SecuritySettings, UserProfile } from '@/types/domain';
+import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, SecuritySettings, UserProfile } from '@/types/domain';
 
 export const DATABASE_NAME = 'live-salary-ticker';
-export const DATABASE_SCHEMA_VERSION = 4;
+export const DATABASE_SCHEMA_VERSION = 5;
 
 export class LiveSalaryTickerDatabase extends Dexie {
   profiles!: EntityTable<UserProfile, 'id'>;
@@ -10,6 +10,7 @@ export class LiveSalaryTickerDatabase extends Dexie {
   appSettings!: EntityTable<AppSettings, 'id'>;
   attendanceRecords!: EntityTable<AttendanceRecord, 'id'>;
   companyTransactions!: EntityTable<CompanyTransaction, 'id'>;
+  companyLoans!: EntityTable<CompanyLoan, 'id'>;
   pocketTransactions!: EntityTable<PocketTransaction, 'id'>;
   savingsGoals!: EntityTable<SavingsGoal, 'id'>;
   careerRecords!: EntityTable<CareerRecord, 'id'>;
@@ -44,11 +45,14 @@ export class LiveSalaryTickerDatabase extends Dexie {
       salarySettings: '&id, updatedAt',
       appSettings: '&id, updatedAt',
       attendanceRecords: '&id, date, status, updatedAt',
-      companyTransactions: '&id, occurredOn, type, updatedAt',
+      companyTransactions: '&id, occurredOn, type, loanId, updatedAt',
+      companyLoans: '&id, issuedOn, updatedAt',
       pocketTransactions: '&id, occurredOn, type, updatedAt',
       savingsGoals: '&id, targetDate, updatedAt',
       careerRecords: '&id, startDate, endDate, updatedAt',
       securitySettings: '&id, updatedAt',
+    }).upgrade(async (transaction) => {
+      await transaction.table('companyTransactions').toCollection().modify({ loanId: null });
     });
   }
 }

@@ -24,6 +24,14 @@ Company and pocket balances are calculated from transaction records. Current sal
 
 **Consequences:** A displayed balance is reproducible and auditable. New balance-affecting features must define their transaction direction in the financial-rule register; they must not add a mutable stored total.
 
+## ADR-003a: Loans use a linked principal record and repayment ledger entries
+
+**Status:** Accepted
+
+Each tracked company loan has its own local record. Issuing it creates a linked company-loan debit; each repayment is a linked company credit. Outstanding principal is derived from the linked repayments, never stored as a mutable balance.
+
+**Consequences:** A repayment cannot exceed the remaining principal. Removing an issued tracked loan removes its linked repayments to prevent orphaned ledger records. Legacy unlinked `loan` entries remain valid historical company ledger entries but do not acquire a repayment schedule automatically.
+
 ## ADR-004: Validate at every persistence and restore boundary
 
 **Status:** Accepted

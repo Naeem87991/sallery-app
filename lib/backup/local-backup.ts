@@ -2,8 +2,8 @@ import 'client-only';
 
 import { DATABASE_SCHEMA_VERSION, db } from '@/lib/database/database';
 import { base64ToBytes, bytesToBase64, toArrayBuffer } from '@/lib/security/pin';
-import { assertAppPreferences, assertAttendanceInput, assertCareerRecordInput, assertCompanyTransactionInput, assertPocketTransactionInput, assertProfile, assertSalaryRules, assertSavingsGoalInput } from '@/lib/validation/domain';
-import type { AppSettings, AttendanceRecord, CareerRecord, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
+import { assertAppPreferences, assertAttendanceInput, assertCareerRecordInput, assertCompanyLoanInput, assertCompanyTransactionInput, assertPocketTransactionInput, assertProfile, assertSalaryRules, assertSavingsGoalInput } from '@/lib/validation/domain';
+import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
 
 const BACKUP_KIND = 'live-salary-ticker-encrypted-backup';
 const BACKUP_FORMAT_VERSION = 1;
@@ -15,6 +15,7 @@ type BackupData = {
   appSettings: AppSettings[];
   attendanceRecords: AttendanceRecord[];
   companyTransactions: CompanyTransaction[];
+  companyLoans: CompanyLoan[];
   pocketTransactions: PocketTransaction[];
   savingsGoals: SavingsGoal[];
   careerRecords: CareerRecord[];
@@ -49,6 +50,7 @@ export type BackupSummary = {
   profileCount: number;
   attendanceCount: number;
   companyTransactionCount: number;
+  companyLoanCount: number;
   pocketTransactionCount: number;
   savingsGoalCount: number;
   careerRecordCount: number;
@@ -99,6 +101,7 @@ export function getBackupSummary(backup: DecryptedBackup): BackupSummary {
     profileCount: backup.data.profiles.length,
     attendanceCount: backup.data.attendanceRecords.length,
     companyTransactionCount: backup.data.companyTransactions.length,
+    companyLoanCount: backup.data.companyLoans.length,
     pocketTransactionCount: backup.data.pocketTransactions.length,
     savingsGoalCount: backup.data.savingsGoals.length,
     careerRecordCount: backup.data.careerRecords.length,
@@ -106,12 +109,12 @@ export function getBackupSummary(backup: DecryptedBackup): BackupSummary {
 }
 
 export async function restoreBackup(backup: DecryptedBackup): Promise<void> {
-  await db.transaction('rw', [db.profiles, db.salarySettings, db.appSettings, db.attendanceRecords, db.companyTransactions, db.pocketTransactions, db.savingsGoals, db.careerRecords], async () => {
+  await db.transaction('rw', [db.profiles, db.salarySettings, db.appSettings, db.attendanceRecords, db.companyTransactions, db.companyLoans, db.pocketTransactions, db.savingsGoals, db.careerRecords], async () => {
     await Promise.all([
-      db.profiles.clear(), db.salarySettings.clear(), db.appSettings.clear(), db.attendanceRecords.clear(), db.companyTransactions.clear(), db.pocketTransactions.clear(), db.savingsGoals.clear(), db.careerRecords.clear(),
+      db.profiles.clear(), db.salarySettings.clear(), db.appSettings.clear(), db.attendanceRecords.clear(), db.companyTransactions.clear(), db.companyLoans.clear(), db.pocketTransactions.clear(), db.savingsGoals.clear(), db.careerRecords.clear(),
     ]);
     await Promise.all([
-      db.profiles.bulkPut(backup.data.profiles), db.salarySettings.bulkPut(backup.data.salarySettings), db.appSettings.bulkPut(backup.data.appSettings), db.attendanceRecords.bulkPut(backup.data.attendanceRecords), db.companyTransactions.bulkPut(backup.data.companyTransactions), db.pocketTransactions.bulkPut(backup.data.pocketTransactions), db.savingsGoals.bulkPut(backup.data.savingsGoals), db.careerRecords.bulkPut(backup.data.careerRecords),
+      db.profiles.bulkPut(backup.data.profiles), db.salarySettings.bulkPut(backup.data.salarySettings), db.appSettings.bulkPut(backup.data.appSettings), db.attendanceRecords.bulkPut(backup.data.attendanceRecords), db.companyTransactions.bulkPut(backup.data.companyTransactions), db.companyLoans.bulkPut(backup.data.companyLoans), db.pocketTransactions.bulkPut(backup.data.pocketTransactions), db.savingsGoals.bulkPut(backup.data.savingsGoals), db.careerRecords.bulkPut(backup.data.careerRecords),
     ]);
   });
 }
@@ -121,10 +124,10 @@ export function validateNewPassphrase(passphrase: string): void {
 }
 
 async function readBackupData(): Promise<BackupData> {
-  const [profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, pocketTransactions, savingsGoals, careerRecords] = await Promise.all([
-    db.profiles.toArray(), db.salarySettings.toArray(), db.appSettings.toArray(), db.attendanceRecords.toArray(), db.companyTransactions.toArray(), db.pocketTransactions.toArray(), db.savingsGoals.toArray(), db.careerRecords.toArray(),
+  const [profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, companyLoans, pocketTransactions, savingsGoals, careerRecords] = await Promise.all([
+    db.profiles.toArray(), db.salarySettings.toArray(), db.appSettings.toArray(), db.attendanceRecords.toArray(), db.companyTransactions.toArray(), db.companyLoans.toArray(), db.pocketTransactions.toArray(), db.savingsGoals.toArray(), db.careerRecords.toArray(),
   ]);
-  return { profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, pocketTransactions, savingsGoals, careerRecords };
+  return { profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, companyLoans, pocketTransactions, savingsGoals, careerRecords };
 }
 
 async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {
@@ -152,10 +155,12 @@ function validateBackupPayload(input: unknown): DecryptedBackup {
   const backup: DecryptedBackup = {
     kind: 'live-salary-ticker-backup', formatVersion: 1, createdAt: record.createdAt, databaseSchemaVersion: record.databaseSchemaVersion,
     data: {
-      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, validateAppSettings), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), pocketTransactions: validateArray(data.pocketTransactions, validatePocketTransaction), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
+      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, validateAppSettings), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), companyLoans: data.companyLoans === undefined && record.databaseSchemaVersion < 5 ? [] : validateArray(data.companyLoans, validateCompanyLoan), pocketTransactions: validateArray(data.pocketTransactions, validatePocketTransaction), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
     },
   };
   Object.values(backup.data).forEach(assertUniqueIds);
+  const companyLoanIds = new Set(backup.data.companyLoans.map((loan) => loan.id));
+  if (backup.data.companyTransactions.some((transaction) => transaction.type === 'loan-repayment' && (!transaction.loanId || !companyLoanIds.has(transaction.loanId)))) throw new Error('A loan repayment does not reference a saved loan.');
   return backup;
 }
 
@@ -193,10 +198,18 @@ function validateAttendanceRecord(input: unknown): AttendanceRecord {
 
 function validateCompanyTransaction(input: unknown): CompanyTransaction {
   const record = validateAudited(input, 'company transaction');
-  if (!isString(record.id) || !isOneOf(record.type, ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'deduction']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note)) throw new Error('A company transaction is invalid.');
-  const companyTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  if (!isString(record.id) || !isOneOf(record.type, ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'loan-repayment', 'deduction']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note) || (record.loanId !== undefined && !isNullableString(record.loanId))) throw new Error('A company transaction is invalid.');
+  const companyTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, loanId: isString(record.loanId) ? record.loanId : null, createdAt: record.createdAt, updatedAt: record.updatedAt };
   assertCompanyTransactionInput(companyTransaction);
   return companyTransaction;
+}
+
+function validateCompanyLoan(input: unknown): CompanyLoan {
+  const record = validateAudited(input, 'company loan');
+  if (!isString(record.id) || !isString(record.name) || !isFiniteNumber(record.principalAmount) || !isString(record.issuedOn) || !isString(record.note)) throw new Error('A company loan is invalid.');
+  const loan = { id: record.id, name: record.name, principalAmount: record.principalAmount, issuedOn: record.issuedOn, note: record.note, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  assertCompanyLoanInput(loan);
+  return loan;
 }
 
 function validatePocketTransaction(input: unknown): PocketTransaction {

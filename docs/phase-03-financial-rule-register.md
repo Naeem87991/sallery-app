@@ -20,6 +20,7 @@ This register is the single product-level reference for money, attendance, and r
 | Attendance dates | All stored attendance dates are real local calendar dates (`YYYY-MM-DD`). | `isValidLocalDate()`. |
 | Automatic attendance | Automation is off by default. When enabled, it considers only the latest eligible completed or triggered date, skips weekly offs and pre-joining dates, and never overwrites a saved record. | `getAutomaticAttendanceCandidate()` and `saveAutomaticAttendanceIfMissing()`. |
 | Company balance | Credit adds to company balance. Withdrawal, voucher, advance, loan, and deduction subtract. | `getCompanyBalance()`. |
+| Loan installments | A tracked loan has positive principal and an issue date. Its issuance is a linked company debit; repayments are linked company credits and cannot exceed outstanding principal. | `CompanyLoan`, `addCompanyLoanRepayment()`, and `getCompanyLoanSnapshots()`. |
 | Pocket balance | Cash-in, receipt, and Udhaar received add. Expense and Udhaar given subtract. | `getPocketBalance()`. |
 | Savings goals | Saved amount is non-negative and may not invalidate the positive target amount. A goal is not itself a pocket transaction. | `assertSavingsGoalInput()`. |
 | Career earnings | Historical career earnings are calculated independently from current salary, company, and pocket values. | `career-earnings.ts`. |
@@ -31,7 +32,7 @@ This register is the single product-level reference for money, attendance, and r
 | --- | --- | --- |
 | Overtime pay | Overtime minutes are stored but do not increase live earnings. | Define rate multiplier, approval rule, and whether overtime is paid per day or per payroll cycle. |
 | Leave pay | Leave is stored as attendance status, but there is no separate paid/unpaid leave balance engine. | Define leave entitlement, paid status, and carry-forward policy. |
-| Loan installments | A company `loan` is a one-off debit entry. | Define principal, repayment source, installment dates, interest, and missed-payment behavior. |
+| Loan interest and due schedule | Principal-only loans can be repaid in any number of manual installments. | Define optional interest, due dates, payroll deductions, and missed-payment behavior before adding them. |
 | Salary deductions | A deduction subtracts from company balance. | Define whether deductions also reduce live/current salary and how payroll-period reconciliation works. |
 | Pocket categories and transfers | Entries have a type and note only. | Define category taxonomy and whether transfers create linked double-entry records. |
 | Reminder alerts | No reminder is generated locally. | Define timing, permissions, and whether notifications work only while the app is open. |

@@ -1,9 +1,9 @@
-import type { AppSettings, AttendanceRecord, AttendanceStatus, CareerRecord, CompanyTransactionType, OnboardingPayload, PocketTransactionType, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
+import type { AppSettings, AttendanceRecord, AttendanceStatus, CareerRecord, CompanyLoan, CompanyTransactionType, OnboardingPayload, PocketTransactionType, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
 
 const localDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 const localTimePattern = /^(\d{2}):(\d{2})$/;
 const attendanceStatuses: AttendanceStatus[] = ['present', 'absent', 'half-day', 'leave', 'weekly-off'];
-const companyTransactionTypes: CompanyTransactionType[] = ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'deduction'];
+const companyTransactionTypes: CompanyTransactionType[] = ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'loan-repayment', 'deduction'];
 const pocketTransactionTypes: PocketTransactionType[] = ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received'];
 
 export function isValidLocalDate(value: string): boolean {
@@ -70,6 +70,13 @@ export function assertCompanyTransactionInput(input: { type: CompanyTransactionT
   assert(isFinitePositive(input.amount), 'Company entry amount must be greater than zero.');
   assert(isValidLocalDate(input.occurredOn), 'Company entry date is invalid.');
   assertTextLength(input.note, 140, 'Company entry note');
+}
+
+export function assertCompanyLoanInput(input: Pick<CompanyLoan, 'name' | 'principalAmount' | 'issuedOn' | 'note'>): void {
+  assert(input.name.trim().length > 0 && input.name.trim().length <= 60, 'Loan name is invalid.');
+  assert(isFinitePositive(input.principalAmount), 'Loan principal must be greater than zero.');
+  assert(isValidLocalDate(input.issuedOn), 'Loan issue date is invalid.');
+  assertTextLength(input.note, 140, 'Loan note');
 }
 
 export function assertPocketTransactionInput(input: { type: PocketTransactionType; amount: number; occurredOn: string; note: string }): void {

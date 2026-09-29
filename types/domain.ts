@@ -6,7 +6,7 @@ export type AutoAttendanceRule = 'off' | 'midnight' | 'shift-end' | 'custom-time
 export type AppTheme = 'dark' | 'light';
 export type AppLanguage = 'en' | 'ur';
 export type AttendanceStatus = 'present' | 'absent' | 'half-day' | 'leave' | 'weekly-off';
-export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'deduction';
+export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'loan-repayment' | 'deduction';
 export type PocketTransactionType = 'cash-in' | 'expense' | 'receipt' | 'udhaar-given' | 'udhaar-received';
 
 export interface AuditedRecord {
@@ -70,6 +70,15 @@ export interface CompanyTransaction extends AuditedRecord {
   type: CompanyTransactionType;
   amount: number;
   occurredOn: string;
+  note: string;
+  loanId: string | null;
+}
+
+export interface CompanyLoan extends AuditedRecord {
+  id: string;
+  name: string;
+  principalAmount: number;
+  issuedOn: string;
   note: string;
 }
 
