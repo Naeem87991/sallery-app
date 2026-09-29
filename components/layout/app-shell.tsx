@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AutomaticAttendanceController } from '@/components/attendance/automatic-attendance-controller';
 import { AppLockScreen } from '@/components/security/app-lock-screen';
+import { LocalizedSurface } from '@/components/layout/localized-surface';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 import { useSecuritySettings } from '@/hooks/use-security-settings';
@@ -63,7 +64,8 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
   if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) return <AppLockScreen securitySettings={securitySettings} />;
 
   return (
-    <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined}>
+    <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined} data-localized-surface>
+      <LocalizedSurface language={language} />
       <AutomaticAttendanceController profile={records?.profile} salarySettings={records?.salarySettings} onRecordCreated={announceAutomaticAttendance} />
       <a className="skip-link" href="#main-content">{translate(language, 'skipToContent')}</a>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{liveMessage}</span>
