@@ -7,7 +7,7 @@ export type AppTheme = 'dark' | 'light';
 export type AppLanguage = 'en' | 'ur';
 export type AttendanceStatus = 'present' | 'absent' | 'half-day' | 'leave' | 'weekly-off';
 export type CompanyTransactionType = 'credit' | 'withdrawal' | 'voucher' | 'advance' | 'loan' | 'loan-repayment' | 'deduction';
-export type PocketTransactionType = 'cash-in' | 'expense' | 'receipt' | 'udhaar-given' | 'udhaar-received';
+export type PocketTransactionType = 'cash-in' | 'expense' | 'receipt' | 'udhaar-given' | 'udhaar-received' | 'savings-transfer-out' | 'savings-transfer-in';
 export type PocketCategory = 'income' | 'food' | 'transport' | 'bills' | 'shopping' | 'health' | 'education' | 'family' | 'entertainment' | 'other';
 
 export interface AuditedRecord {
@@ -46,6 +46,7 @@ export interface AppSettings extends AuditedRecord {
   theme: AppTheme;
   language: AppLanguage;
   isPrivacyModeEnabled: boolean;
+  lowCashThreshold: number;
 }
 
 export interface SecuritySettings extends AuditedRecord {
@@ -91,6 +92,8 @@ export interface PocketTransaction extends AuditedRecord {
   note: string;
   category: PocketCategory;
   receiptDataUrl: string | null;
+  savingsGoalId: string | null;
+  reminderOn: string | null;
 }
 
 export interface SavingsGoal extends AuditedRecord {

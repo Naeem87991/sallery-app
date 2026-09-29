@@ -24,6 +24,7 @@ import {
   type OnboardingPayload,
   type PocketTransactionType,
   type PocketCategory,
+  type PocketTransaction,
   type SalarySettings,
   type SavingsGoal,
   type SecuritySettings,
@@ -50,6 +51,7 @@ export const defaultAppSettings: Omit<AppSettings, 'id' | 'createdAt' | 'updated
   theme: 'dark',
   language: 'en',
   isPrivacyModeEnabled: false,
+  lowCashThreshold: 0,
 };
 
 export async function saveOnboarding(payload: OnboardingPayload): Promise<void> {
@@ -252,6 +254,8 @@ export type PocketTransactionInput = {
   note: string;
   category: PocketCategory;
   receiptDataUrl: string | null;
+  savingsGoalId: string | null;
+  reminderOn: string | null;
 };
 
 export async function addPocketTransaction(input: PocketTransactionInput): Promise<void> {
@@ -262,6 +266,30 @@ export async function addPocketTransaction(input: PocketTransactionInput): Promi
 
 export async function deletePocketTransaction(id: string): Promise<void> {
   await db.pocketTransactions.delete(id);
+}
+
+export type SavingsTransferInput = Pick<PocketTransaction, 'amount' | 'occurredOn' | 'note' | 'savingsGoalId'> & { direction: 'to-goal' | 'from-goal' };
+
+export async function addSavingsTransfer(input: SavingsTransferInput): Promise<void> {
+  const savingsGoalId = input.savingsGoalId;
+  if (!savingsGoalId) throw new Error('Choose a savings goal for this transfer.');
+  const type: PocketTransactionType = input.direction === 'to-goal' ? 'savings-transfer-out' : 'savings-transfer-in';
+  const baseTransaction = { type, amount: input.amount, occurredOn: input.occurredOn, note: input.note, category: 'other' as PocketCategory, receiptDataUrl: null, savingsGoalId, reminderOn: null };
+  assertPocketTransactionInput(baseTransaction);
+  await db.transaction('rw', db.pocketTransactions, db.savingsGoals, async () => {
+    const goal = await db.savingsGoals.get(savingsGoalId);
+    if (!goal) throw new Error('This savings goal no longer exists.');
+    if (input.direction === 'from-goal' && input.amount > goal.savedAmount) throw new Error('You cannot move more than this goal currently holds.');
+    const now = new Date().toISOString();
+    await db.pocketTransactions.add({ id: createLocalId(), ...baseTransaction, note: input.note.trim() || (input.direction === 'to-goal' ? `Moved to ${goal.name}` : `Moved from ${goal.name}`), createdAt: now, updatedAt: now });
+    await db.savingsGoals.put({ ...goal, savedAmount: goal.savedAmount + (input.direction === 'to-goal' ? input.amount : -input.amount), updatedAt: now });
+  });
+}
+
+export async function clearUdhaarReminder(id: string): Promise<void> {
+  const transaction = await db.pocketTransactions.get(id);
+  if (!transaction || transaction.type !== 'udhaar-given') throw new Error('This Udhaar reminder is no longer available.');
+  await db.pocketTransactions.put({ ...transaction, reminderOn: null, updatedAt: new Date().toISOString() });
 }
 
 export type SavingsGoalInput = Pick<SavingsGoal, 'name' | 'targetAmount' | 'savedAmount' | 'targetDate' | 'note'>;
@@ -278,6 +306,8 @@ export async function updateSavingsGoal(goal: SavingsGoal): Promise<void> {
 }
 
 export async function deleteSavingsGoal(id: string): Promise<void> {
+  const linkedTransfer = await db.pocketTransactions.where('savingsGoalId').equals(id).first();
+  if (linkedTransfer) throw new Error('This goal has transfer history and cannot be removed.');
   await db.savingsGoals.delete(id);
 }
 

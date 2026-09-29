@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketTransaction, SalarySettings, SavingsGoal, SecuritySettings, UserProfile } from '@/types/domain';
 
 export const DATABASE_NAME = 'live-salary-ticker';
-export const DATABASE_SCHEMA_VERSION = 6;
+export const DATABASE_SCHEMA_VERSION = 7;
 
 export class LiveSalaryTickerDatabase extends Dexie {
   profiles!: EntityTable<UserProfile, 'id'>;
@@ -54,7 +54,7 @@ export class LiveSalaryTickerDatabase extends Dexie {
     }).upgrade(async (transaction) => {
       await transaction.table('companyTransactions').toCollection().modify({ loanId: null });
     });
-    this.version(DATABASE_SCHEMA_VERSION).stores({
+    this.version(6).stores({
       profiles: '&id, updatedAt',
       salarySettings: '&id, updatedAt',
       appSettings: '&id, updatedAt',
@@ -67,6 +67,21 @@ export class LiveSalaryTickerDatabase extends Dexie {
       securitySettings: '&id, updatedAt',
     }).upgrade(async (transaction) => {
       await transaction.table('pocketTransactions').toCollection().modify({ category: 'other', receiptDataUrl: null });
+    });
+    this.version(DATABASE_SCHEMA_VERSION).stores({
+      profiles: '&id, updatedAt',
+      salarySettings: '&id, updatedAt',
+      appSettings: '&id, updatedAt',
+      attendanceRecords: '&id, date, status, updatedAt',
+      companyTransactions: '&id, occurredOn, type, loanId, updatedAt',
+      companyLoans: '&id, issuedOn, updatedAt',
+      pocketTransactions: '&id, occurredOn, type, savingsGoalId, reminderOn, updatedAt',
+      savingsGoals: '&id, targetDate, updatedAt',
+      careerRecords: '&id, startDate, endDate, updatedAt',
+      securitySettings: '&id, updatedAt',
+    }).upgrade(async (transaction) => {
+      await transaction.table('appSettings').toCollection().modify({ lowCashThreshold: 0 });
+      await transaction.table('pocketTransactions').toCollection().modify({ savingsGoalId: null, reminderOn: null });
     });
   }
 }

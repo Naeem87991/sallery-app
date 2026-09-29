@@ -35,7 +35,7 @@ function companyTransaction(type: CompanyTransaction['type'], amount: number): C
 }
 
 function pocketTransaction(type: PocketTransaction['type'], amount: number): PocketTransaction {
-  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '', category: 'other', receiptDataUrl: null };
+  return { ...audit, id: `${type}-${amount}`, type, amount, occurredOn: '2025-01-06', note: '', category: 'other', receiptDataUrl: null, savingsGoalId: null, reminderOn: null };
 }
 
 function careerRecord(startDate: string, endDate: string, monthlySalary = 30_000): CareerRecord {
@@ -90,6 +90,14 @@ describe('ledger calculations', () => {
       pocketTransaction('receipt', 500),
     ])).toBe(2_500);
   });
+
+  it('treats a transfer into a savings goal as pocket money moving out', () => {
+    expect(getPocketBalance([
+      pocketTransaction('cash-in', 3_000),
+      pocketTransaction('savings-transfer-out', 1_200),
+      pocketTransaction('savings-transfer-in', 200),
+    ])).toBe(2_000);
+  });
 });
 
 describe('career calculations', () => {
@@ -112,7 +120,7 @@ describe('local date validation', () => {
 
 describe('pocket receipt validation', () => {
   it('accepts a supported small receipt image and rejects unsafe receipt data', () => {
-    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:image/png;base64,AA==' })).not.toThrow();
-    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:text/plain;base64,AA==' })).toThrow('Receipt image');
+    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:image/png;base64,AA==', savingsGoalId: null, reminderOn: null })).not.toThrow();
+    expect(() => assertPocketTransactionInput({ type: 'expense', amount: 200, occurredOn: '2025-01-06', note: '', category: 'food', receiptDataUrl: 'data:text/plain;base64,AA==', savingsGoalId: null, reminderOn: null })).toThrow('Receipt image');
   });
 });

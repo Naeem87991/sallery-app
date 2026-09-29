@@ -4,7 +4,7 @@ const localDatePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 const localTimePattern = /^(\d{2}):(\d{2})$/;
 const attendanceStatuses: AttendanceStatus[] = ['present', 'absent', 'half-day', 'leave', 'weekly-off'];
 const companyTransactionTypes: CompanyTransactionType[] = ['credit', 'withdrawal', 'voucher', 'advance', 'loan', 'loan-repayment', 'deduction'];
-const pocketTransactionTypes: PocketTransactionType[] = ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received'];
+const pocketTransactionTypes: PocketTransactionType[] = ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received', 'savings-transfer-out', 'savings-transfer-in'];
 export const pocketCategories: PocketCategory[] = ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other'];
 export const MAX_RECEIPT_DATA_URL_LENGTH = 1_400_000;
 
@@ -56,6 +56,7 @@ export function assertAppPreferences(appSettings: Omit<AppSettings, 'id' | 'crea
   assert(appSettings.theme === 'dark' || appSettings.theme === 'light', 'Theme is invalid.');
   assert(appSettings.language === 'en' || appSettings.language === 'ur', 'Language is invalid.');
   assert(typeof appSettings.isPrivacyModeEnabled === 'boolean', 'Privacy mode setting is invalid.');
+  assert(Number.isFinite(appSettings.lowCashThreshold) && appSettings.lowCashThreshold >= 0 && appSettings.lowCashThreshold <= 10_000_000, 'Low-cash threshold is invalid.');
 }
 
 export function assertAttendanceInput(input: Pick<AttendanceRecord, 'date' | 'status' | 'checkIn' | 'checkOut' | 'overtimeMinutes' | 'note'>): void {
@@ -81,13 +82,17 @@ export function assertCompanyLoanInput(input: Pick<CompanyLoan, 'name' | 'princi
   assertTextLength(input.note, 140, 'Loan note');
 }
 
-export function assertPocketTransactionInput(input: { type: PocketTransactionType; amount: number; occurredOn: string; note: string; category: PocketCategory; receiptDataUrl: string | null }): void {
+export function assertPocketTransactionInput(input: { type: PocketTransactionType; amount: number; occurredOn: string; note: string; category: PocketCategory; receiptDataUrl: string | null; savingsGoalId: string | null; reminderOn: string | null }): void {
   assert(pocketTransactionTypes.includes(input.type), 'Pocket entry type is invalid.');
   assert(isFinitePositive(input.amount), 'Pocket entry amount must be greater than zero.');
   assert(isValidLocalDate(input.occurredOn), 'Pocket entry date is invalid.');
   assertTextLength(input.note, 140, 'Pocket entry note');
   assert(pocketCategories.includes(input.category), 'Pocket entry category is invalid.');
   assert(input.receiptDataUrl === null || (isSupportedReceiptDataUrl(input.receiptDataUrl) && input.receiptDataUrl.length <= MAX_RECEIPT_DATA_URL_LENGTH), 'Receipt image is invalid or too large.');
+  assert(input.savingsGoalId === null || input.savingsGoalId.length > 0, 'Savings goal reference is invalid.');
+  assert(input.reminderOn === null || isValidLocalDate(input.reminderOn), 'Udhaar reminder date is invalid.');
+  assert(input.type === 'udhaar-given' || input.reminderOn === null, 'Only Udhaar given entries can have a reminder.');
+  assert(['savings-transfer-out', 'savings-transfer-in'].includes(input.type) === (input.savingsGoalId !== null), 'Savings transfers must reference a goal.');
 }
 
 export function assertSavingsGoalInput(input: Pick<SavingsGoal, 'name' | 'targetAmount' | 'savedAmount' | 'targetDate' | 'note'>): void {

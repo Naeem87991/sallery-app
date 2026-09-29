@@ -1,6 +1,6 @@
 import type { PocketTransaction, PocketTransactionType } from '@/types/domain';
 
-const debitTypes: PocketTransactionType[] = ['expense', 'udhaar-given'];
+const debitTypes: PocketTransactionType[] = ['expense', 'udhaar-given', 'savings-transfer-out'];
 
 export function isPocketDebit(type: PocketTransactionType): boolean {
   return debitTypes.includes(type);

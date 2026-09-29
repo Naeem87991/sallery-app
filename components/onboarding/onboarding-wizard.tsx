@@ -70,7 +70,7 @@ export function OnboardingWizard() {
       await saveOnboarding({
         profile: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), employeeId: form.employeeId.trim(), designation: form.designation.trim(), joiningDate: form.joiningDate },
         salarySettings: { salaryMode: form.salaryMode, baseSalary: Number(form.baseSalary), dailyRate: form.salaryMode === 'daily-rate' ? Number(form.dailyRate) : null, salaryCalculationRule: form.calculationRule, dutyStart: form.dutyStart, dutyEnd: form.dutyEnd, shiftDurationHours: Number(form.shiftHours), weeklyOffDay: Number(form.weeklyOff), isWeeklyOffPaid: form.weeklyOffPaid, autoAttendanceRule: form.autoAttendance, autoAttendanceTime: form.autoAttendance === 'custom-time' ? form.autoAttendanceTime || null : null, halfDayFactor: 0.5, currency: 'PKR' },
-        appSettings: { theme: form.theme, language: form.language, isPrivacyModeEnabled: form.privacyMode },
+        appSettings: { theme: form.theme, language: form.language, isPrivacyModeEnabled: form.privacyMode, lowCashThreshold: 0 },
       });
       router.replace('/');
     } catch {

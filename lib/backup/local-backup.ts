@@ -156,12 +156,14 @@ function validateBackupPayload(input: unknown): DecryptedBackup {
   const backup: DecryptedBackup = {
     kind: 'live-salary-ticker-backup', formatVersion: 1, createdAt: record.createdAt, databaseSchemaVersion,
     data: {
-      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, validateAppSettings), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), companyLoans: data.companyLoans === undefined && databaseSchemaVersion < 5 ? [] : validateArray(data.companyLoans, validateCompanyLoan), pocketTransactions: validateArray(data.pocketTransactions, (value) => validatePocketTransaction(value, databaseSchemaVersion < 6)), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
+      profiles: validateArray(data.profiles, validateUserProfile), salarySettings: validateArray(data.salarySettings, validateSalarySettings), appSettings: validateArray(data.appSettings, (value) => validateAppSettings(value, databaseSchemaVersion < 7)), attendanceRecords: validateArray(data.attendanceRecords, validateAttendanceRecord), companyTransactions: validateArray(data.companyTransactions, validateCompanyTransaction), companyLoans: data.companyLoans === undefined && databaseSchemaVersion < 5 ? [] : validateArray(data.companyLoans, validateCompanyLoan), pocketTransactions: validateArray(data.pocketTransactions, (value) => validatePocketTransaction(value, databaseSchemaVersion < 7)), savingsGoals: validateArray(data.savingsGoals, validateSavingsGoal), careerRecords: validateArray(data.careerRecords, validateCareerRecord),
     },
   };
   Object.values(backup.data).forEach(assertUniqueIds);
   const companyLoanIds = new Set(backup.data.companyLoans.map((loan) => loan.id));
+  const savingsGoalIds = new Set(backup.data.savingsGoals.map((goal) => goal.id));
   if (backup.data.companyTransactions.some((transaction) => transaction.type === 'loan-repayment' && (!transaction.loanId || !companyLoanIds.has(transaction.loanId)))) throw new Error('A loan repayment does not reference a saved loan.');
+  if (backup.data.pocketTransactions.some((transaction) => transaction.savingsGoalId && !savingsGoalIds.has(transaction.savingsGoalId))) throw new Error('A savings transfer does not reference a saved goal.');
   return backup;
 }
 
@@ -181,10 +183,10 @@ function validateSalarySettings(input: unknown): SalarySettings {
   return salarySettings;
 }
 
-function validateAppSettings(input: unknown): AppSettings {
+function validateAppSettings(input: unknown, allowLegacyFields: boolean): AppSettings {
   const record = validateAudited(input, 'app settings');
-  if (!isOneOf(record.theme, ['dark', 'light']) || !isOneOf(record.language, ['en', 'ur']) || !isBoolean(record.isPrivacyModeEnabled)) throw new Error('The backup display settings are invalid.');
-  const appSettings = { ...baseCurrentRecord(record, 'app settings'), theme: record.theme, language: record.language, isPrivacyModeEnabled: record.isPrivacyModeEnabled };
+  if (!isOneOf(record.theme, ['dark', 'light']) || !isOneOf(record.language, ['en', 'ur']) || !isBoolean(record.isPrivacyModeEnabled) || (!allowLegacyFields && (!isFiniteNumber(record.lowCashThreshold) || record.lowCashThreshold < 0)) || (allowLegacyFields && record.lowCashThreshold !== undefined && (!isFiniteNumber(record.lowCashThreshold) || record.lowCashThreshold < 0))) throw new Error('The backup display settings are invalid.');
+  const appSettings = { ...baseCurrentRecord(record, 'app settings'), theme: record.theme, language: record.language, isPrivacyModeEnabled: record.isPrivacyModeEnabled, lowCashThreshold: isFiniteNumber(record.lowCashThreshold) ? record.lowCashThreshold : 0 };
   assertAppPreferences(appSettings);
   return appSettings;
 }
@@ -215,8 +217,9 @@ function validateCompanyLoan(input: unknown): CompanyLoan {
 
 function validatePocketTransaction(input: unknown, allowLegacyFields: boolean): PocketTransaction {
   const record = validateAudited(input, 'pocket transaction');
-  if (!isString(record.id) || !isOneOf(record.type, ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note) || (!allowLegacyFields && (!isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) || !isNullableString(record.receiptDataUrl))) || (allowLegacyFields && ((record.category !== undefined && !isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other'])) || (record.receiptDataUrl !== undefined && !isNullableString(record.receiptDataUrl))))) throw new Error('A pocket transaction is invalid.');
-  const pocketTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, category: (isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) ? record.category : 'other') as PocketCategory, receiptDataUrl: isString(record.receiptDataUrl) ? record.receiptDataUrl : null, createdAt: record.createdAt, updatedAt: record.updatedAt };
+  const hasValidNewFields = isNullableString(record.savingsGoalId) && isNullableString(record.reminderOn);
+  if (!isString(record.id) || !isOneOf(record.type, ['cash-in', 'expense', 'receipt', 'udhaar-given', 'udhaar-received', 'savings-transfer-out', 'savings-transfer-in']) || !isFiniteNumber(record.amount) || !isString(record.occurredOn) || !isString(record.note) || (!allowLegacyFields && (!isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) || !isNullableString(record.receiptDataUrl) || !hasValidNewFields)) || (allowLegacyFields && ((record.category !== undefined && !isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other'])) || (record.receiptDataUrl !== undefined && !isNullableString(record.receiptDataUrl)) || (record.savingsGoalId !== undefined && !isNullableString(record.savingsGoalId)) || (record.reminderOn !== undefined && !isNullableString(record.reminderOn))))) throw new Error('A pocket transaction is invalid.');
+  const pocketTransaction = { id: record.id, type: record.type, amount: record.amount, occurredOn: record.occurredOn, note: record.note, category: (isOneOf(record.category, ['income', 'food', 'transport', 'bills', 'shopping', 'health', 'education', 'family', 'entertainment', 'other']) ? record.category : 'other') as PocketCategory, receiptDataUrl: isString(record.receiptDataUrl) ? record.receiptDataUrl : null, savingsGoalId: isString(record.savingsGoalId) ? record.savingsGoalId : null, reminderOn: isString(record.reminderOn) ? record.reminderOn : null, createdAt: record.createdAt, updatedAt: record.updatedAt };
   assertPocketTransactionInput(pocketTransaction);
   return pocketTransaction;
 }
