@@ -21,3 +21,4 @@ legacy-prototype/
 Thumbs.db
 .idea/
 .vscode/
+.vercel

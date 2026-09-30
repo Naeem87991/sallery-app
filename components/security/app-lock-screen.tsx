@@ -5,9 +5,10 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { verifyLocalPasskey } from '@/lib/security/passkey';
 import { verifyPin } from '@/lib/security/pin';
 import { markSecuritySessionUnlocked } from '@/lib/security/session-lock';
-import type { SecuritySettings } from '@/types/domain';
+import type { AppLanguage, SecuritySettings } from '@/types/domain';
 
-export function AppLockScreen({ securitySettings }: { securitySettings: SecuritySettings }) {
+export function AppLockScreen({ securitySettings, language }: { securitySettings: SecuritySettings; language?: AppLanguage }) {
+  const isUrdu = language === 'ur';
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -15,9 +16,14 @@ export function AppLockScreen({ securitySettings }: { securitySettings: Security
   const unlockWithPin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setIsUnlocking(true); setStatus('');
     try {
-      if (!await verifyPin(pin, securitySettings)) { setStatus('That PIN did not unlock this workspace.'); return; }
+      if (!await verifyPin(pin, securitySettings)) {
+        setStatus(isUrdu ? 'اس پن سے ورک اسپیس ان لاک نہیں ہو سکا۔' : 'That PIN did not unlock this workspace.');
+        return;
+      }
       markSecuritySessionUnlocked(securitySettings);
-    } catch { setStatus('The PIN could not be checked on this device.'); }
+    } catch {
+      setStatus(isUrdu ? 'اس ڈیوائس پر پن کی تصدیق نہیں ہو سکی۔' : 'The PIN could not be checked on this device.');
+    }
     finally { setIsUnlocking(false); }
   };
 
@@ -25,10 +31,13 @@ export function AppLockScreen({ securitySettings }: { securitySettings: Security
     if (!securitySettings.passkeyCredentialId) return;
     setIsUnlocking(true); setStatus('');
     try {
-      if (!await verifyLocalPasskey(securitySettings.passkeyCredentialId)) { setStatus('The passkey check was cancelled or could not unlock this workspace.'); return; }
+      if (!await verifyLocalPasskey(securitySettings.passkeyCredentialId)) {
+        setStatus(isUrdu ? 'پاس کی کی تصدیق منسوخ ہوئی یا ورک اسپیس ان لاک نہیں ہو سکا۔' : 'The passkey check was cancelled or could not unlock this workspace.');
+        return;
+      }
       markSecuritySessionUnlocked(securitySettings);
     } finally { setIsUnlocking(false); }
   };
 
-  return <main className="app-lock-screen"><section className="app-lock-card"><span className="app-lock-icon"><AppIcon name="lock" aria-hidden="true" size={25} /></span><p className="eyebrow">LOCAL APP LOCK</p><h1>Your workspace is locked.</h1><p>Enter your PIN to view financial records stored on this device.</p><form onSubmit={unlockWithPin}><label className="field"><span>PIN</span><input autoFocus autoComplete="current-password" inputMode="numeric" maxLength={8} pattern="[0-9]*" type="password" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, ''))} placeholder="••••" required /></label><button className="primary-button" type="submit" disabled={isUnlocking}>{isUnlocking ? 'Checking…' : 'Unlock workspace'} <AppIcon name="arrow-right" aria-hidden="true" size={17} /></button></form>{securitySettings.passkeyCredentialId ? <button className="secondary-button lock-passkey-button" type="button" disabled={isUnlocking} onClick={unlockWithPasskey}>Use this device&apos;s passkey</button> : null}<span className="app-lock-status" role="status">{status}</span><small>PIN verification happens locally. No financial data is sent anywhere.</small></section></main>;
+  return <main className="app-lock-screen"><section className="app-lock-card"><span className="app-lock-icon"><AppIcon name="lock" aria-hidden="true" size={25} /></span><p className="eyebrow">LOCAL APP LOCK</p><h1>Your workspace is locked.</h1><p>Enter your PIN to view financial records stored on this device.</p><form onSubmit={unlockWithPin}><label className="field"><span>PIN</span><input autoFocus autoComplete="current-password" inputMode="numeric" maxLength={8} pattern="[0-9]*" type="password" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, ''))} placeholder="••••" required /></label><button className="primary-button" type="submit" disabled={isUnlocking}>{isUnlocking ? (isUrdu ? 'چیک کیا جا رہا ہے…' : 'Checking…') : (isUrdu ? 'ورک اسپیس ان لاک کریں' : 'Unlock workspace')} <AppIcon name="arrow-right" aria-hidden="true" size={17} /></button></form>{securitySettings.passkeyCredentialId ? <button className="secondary-button lock-passkey-button" type="button" disabled={isUnlocking} onClick={unlockWithPasskey}>{isUrdu ? 'اس ڈیوائس کی پاس کی استعمال کریں' : 'Use this device\'s passkey'}</button> : null}<span className="app-lock-status" role="status">{status}</span><small>PIN verification happens locally. No financial data is sent anywhere.</small></section></main>;
 }

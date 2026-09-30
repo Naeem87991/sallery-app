@@ -19,6 +19,11 @@ export function formatDate(value: string): string {
   return new Intl.DateTimeFormat(getFormattingLocale(), { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
+export function formatTime(value: Date): string {
+  return new Intl.DateTimeFormat(getFormattingLocale(), { hour: 'numeric', minute: '2-digit' }).format(value);
+}
+
 function getFormattingLocale(): string {
   return typeof document !== 'undefined' && document.documentElement.lang === 'ur' ? 'ur-PK' : 'en-PK';
 }
+

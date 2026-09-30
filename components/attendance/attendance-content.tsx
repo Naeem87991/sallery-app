@@ -9,15 +9,25 @@ import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 import { useAppTranslation } from '@/hooks/use-app-translation';
 import { fillWorkdaysForMonth, saveAttendanceRecord } from '@/lib/database/repository';
 import { formatDate, formatMonth, getLocalDateValue, getMonthValue } from '@/lib/formatting/date';
-import type { AttendanceRecord, AttendanceStatus, SalarySettings } from '@/types/domain';
+import type { AppLanguage, AttendanceRecord, AttendanceStatus, SalarySettings } from '@/types/domain';
 
-const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const weekdayLabelsEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const weekdayLabelsUr = ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'];
+
 const statusLabels: Record<AttendanceStatus, string> = {
   present: 'Present',
   absent: 'Absent',
   'half-day': 'Half day',
   leave: 'Leave',
   'weekly-off': 'Weekly off',
+};
+
+const statusLabelsUr: Record<AttendanceStatus, string> = {
+  present: 'حاضر',
+  absent: 'غیر حاضر',
+  'half-day': 'آدھا دن',
+  leave: 'چھٹی',
+  'weekly-off': 'ہفتہ وار چھٹی',
 };
 
 export function AttendanceContent() {
@@ -30,6 +40,10 @@ export function AttendanceContent() {
   const [bulkStatus, setBulkStatus] = useState('');
   const profile = appRecords?.profile;
   const salarySettings = appRecords?.salarySettings;
+  const language = appRecords?.appSettings?.language;
+  const isUrdu = language === 'ur';
+  const activeStatusLabels = isUrdu ? statusLabelsUr : statusLabels;
+  const activeWeekdays = isUrdu ? weekdayLabelsUr : weekdayLabelsEn;
 
   if (isLoading || attendanceLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingAttendance')}</section>;
   if (!isOnboarded || !profile || !salarySettings) return <SetupRequired />;
@@ -47,39 +61,59 @@ export function AttendanceContent() {
   };
   const focusNextUnrecordedWorkday = () => {
     const nextDate = findNextUnrecordedWorkday({ month, selectedDate, records, weeklyOffDay: salarySettings.weeklyOffDay, joiningDate: profile.joiningDate, throughDate: getLocalDateValue() });
-    if (!nextDate) { setBulkStatus('Every scheduled workday through today is already recorded.'); return; }
+    if (!nextDate) { setBulkStatus(isUrdu ? 'آج تک کے تمام طے شدہ کام کے دن پہلے سے ریکارڈ ہیں۔' : 'Every scheduled workday through today is already recorded.'); return; }
     setSelectedDate(nextDate);
-    setBulkStatus(`Selected the next unrecorded workday: ${formatDate(nextDate)}.`);
+    setBulkStatus(isUrdu ? `اگلا غیر ریکارڈ شدہ کام کا دن منتخب کیا گیا: ${formatDate(nextDate)}۔` : `Selected the next unrecorded workday: ${formatDate(nextDate)}.`);
   };
   const fillMonth = async () => {
     setBulkStatus('');
     try {
       const count = await fillWorkdaysForMonth({ month, weeklyOffDay: salarySettings.weeklyOffDay, joiningDate: profile.joiningDate, throughDate: getLocalDateValue() });
-      setBulkStatus(count ? `${count} workday${count === 1 ? '' : 's'} marked present.` : 'All past workdays are already recorded.');
+      setBulkStatus(count ? (isUrdu ? `${count} کام کے دن حاضر درج کر دیے گئے۔` : `${count} workday${count === 1 ? '' : 's'} marked present.`) : (isUrdu ? 'آج تک کے تمام گزشتہ کام کے دن پہلے سے ریکارڈ ہیں۔' : 'All past workdays are already recorded.'));
     } catch {
-      setBulkStatus('Could not update attendance locally. Please try again.');
+      setBulkStatus(isUrdu ? 'حاضری مقامی طور پر اپ ڈیٹ نہیں ہو سکی۔ دوبارہ کوشش کریں۔' : 'Could not update attendance locally. Please try again.');
     }
   };
 
   return (
     <section className="attendance-page">
       <header className="page-heading"><div><p className="eyebrow">{t('attendancePage')}</p><h1>{t('attendanceTitle')}</h1><p className="page-subtitle">{t('attendanceSubtitle')}</p></div></header>
-      <div className="attendance-summary" aria-label="Monthly attendance summary"><SummaryCard label="Recorded" value={String(records.length)} detail="days this month" /><SummaryCard label="Present" value={String(stats.present)} detail="full days" /><SummaryCard label="Time off" value={String(stats.absent + stats.leave)} detail="absent or leave" /><SummaryCard label="Overtime" value={formatOvertime(stats.overtimeMinutes)} detail="recorded" /></div>
+      <div className="attendance-summary" aria-label={isUrdu ? 'ماہانہ حاضری کا خلاصہ' : 'Monthly attendance summary'}>
+        <SummaryCard label={isUrdu ? 'ریکارڈ شدہ' : 'Recorded'} value={String(records.length)} detail={isUrdu ? 'اس ماہ کے دن' : 'days this month'} />
+        <SummaryCard label={isUrdu ? 'حاضر' : 'Present'} value={String(stats.present)} detail={isUrdu ? 'مکمل دن' : 'full days'} />
+        <SummaryCard label={isUrdu ? 'چھٹی' : 'Time off'} value={String(stats.absent + stats.leave)} detail={isUrdu ? 'غیر حاضر یا رخصت' : 'absent or leave'} />
+        <SummaryCard label={isUrdu ? 'اوور ٹائم' : 'Overtime'} value={formatOvertime(stats.overtimeMinutes, language)} detail={isUrdu ? 'ریکارڈ شدہ' : 'recorded'} />
+      </div>
       <section className="attendance-calendar-section">
-        <div className="calendar-toolbar"><div><p className="eyebrow">MONTH VIEW</p><h2>{formatMonth(month)}</h2></div><div className="calendar-controls"><button className="icon-button" type="button" aria-label="Previous month" onClick={() => goToMonth(-1)}>←</button><button className="secondary-button" type="button" onClick={() => { setMonth(getMonthValue()); setSelectedDate(getLocalDateValue()); setBulkStatus(''); }}>Today</button><button className="icon-button" type="button" aria-label="Next month" onClick={() => goToMonth(1)}>→</button></div></div>
-        <div className="attendance-filter-bar"><label className="field"><span>Show saved status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as AttendanceStatus | 'all')}><option value="all">All recorded statuses</option>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><div><strong>{filteredRecordCount}</strong><span>{statusFilter === 'all' ? 'records this month' : `${statusLabels[statusFilter]} record${filteredRecordCount === 1 ? '' : 's'} shown`}</span></div>{statusFilter !== 'all' ? <button className="secondary-button" type="button" onClick={() => setStatusFilter('all')}>Clear filter</button> : null}</div>
-        <div className="calendar-weekdays" aria-hidden="true">{weekdayLabels.map((label) => <span key={label}>{label}</span>)}</div>
-        <div className="attendance-calendar">{getCalendarDays(month).map((day, index) => day ? <DayButton key={day.date} day={day} record={recordByDate.get(day.date)} selected={selectedDate === day.date} weeklyOffDay={salarySettings.weeklyOffDay} isFilteredOut={statusFilter !== 'all' && recordByDate.get(day.date)?.status !== statusFilter} onSelect={setSelectedDate} /> : <span className="calendar-blank" key={`blank-${index}`} />)}</div>
-        <div className="calendar-legend"><span><i className="attendance-status-dot status-present" />Present</span><span><i className="attendance-status-dot status-half-day" />Half day</span><span><i className="attendance-status-dot status-absent" />Away</span><span><i className="attendance-status-dot status-weekly-off" />Weekly off</span></div>
-        <div className="attendance-bulk"><div><strong>Fill past scheduled workdays</strong><small>Only blank workdays through today are marked present. Existing entries stay untouched.</small></div><div className="attendance-workflow-actions"><button className="secondary-button" type="button" onClick={focusNextUnrecordedWorkday}>Next unrecorded workday</button><button className="secondary-button" type="button" onClick={fillMonth} disabled={month > getMonthValue()}>Fill unrecorded days</button></div></div>
+        <div className="calendar-toolbar"><div><p className="eyebrow">{isUrdu ? 'ماہانہ منظر' : 'MONTH VIEW'}</p><h2>{formatMonth(month)}</h2></div><div className="calendar-controls"><button className="icon-button" type="button" aria-label={isUrdu ? 'پچھلا مہینہ' : 'Previous month'} onClick={() => goToMonth(-1)}>←</button><button className="secondary-button" type="button" onClick={() => { setMonth(getMonthValue()); setSelectedDate(getLocalDateValue()); setBulkStatus(''); }}>{isUrdu ? 'آج' : 'Today'}</button><button className="icon-button" type="button" aria-label={isUrdu ? 'اگلا مہینہ' : 'Next month'} onClick={() => goToMonth(1)}>→</button></div></div>
+        <div className="attendance-filter-bar">
+          <label className="field">
+            <span>{isUrdu ? 'محفوظ شدہ حالت دکھائیں' : 'Show saved status'}</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as AttendanceStatus | 'all')}>
+              <option value="all">{isUrdu ? 'تمام ریکارڈ شدہ حالات' : 'All recorded statuses'}</option>
+              {Object.entries(activeStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            </select>
+          </label>
+          <div>
+            <strong>{filteredRecordCount}</strong>
+            <span>{statusFilter === 'all' ? (isUrdu ? 'اس ماہ کے ریکارڈز' : 'records this month') : (isUrdu ? `${activeStatusLabels[statusFilter]} کے ${filteredRecordCount} ریکارڈز` : `${statusLabels[statusFilter]} record${filteredRecordCount === 1 ? '' : 's'} shown`)}</span>
+          </div>
+          {statusFilter !== 'all' ? <button className="secondary-button" type="button" onClick={() => setStatusFilter('all')}>{isUrdu ? 'فلٹر صاف کریں' : 'Clear filter'}</button> : null}
+        </div>
+        <div className="calendar-weekdays" aria-hidden="true">{activeWeekdays.map((label) => <span key={label}>{label}</span>)}</div>
+        <div className="attendance-calendar">{getCalendarDays(month).map((day, index) => day ? <DayButton key={day.date} day={day} record={recordByDate.get(day.date)} selected={selectedDate === day.date} weeklyOffDay={salarySettings.weeklyOffDay} isFilteredOut={statusFilter !== 'all' && recordByDate.get(day.date)?.status !== statusFilter} onSelect={setSelectedDate} language={language} statusLabels={activeStatusLabels} /> : <span className="calendar-blank" key={`blank-${index}`} />)}</div>
+        <div className="calendar-legend"><span><i className="attendance-status-dot status-present" />{isUrdu ? 'حاضر' : 'Present'}</span><span><i className="attendance-status-dot status-half-day" />{isUrdu ? 'آدھا دن' : 'Half day'}</span><span><i className="attendance-status-dot status-absent" />{isUrdu ? 'غیر حاضر' : 'Away'}</span><span><i className="attendance-status-dot status-weekly-off" />{isUrdu ? 'ہفتہ وار چھٹی' : 'Weekly off'}</span></div>
+        <div className="attendance-bulk"><div><strong>{isUrdu ? 'گزشتہ کام کے دن درج کریں' : 'Fill past scheduled workdays'}</strong><small>{isUrdu ? 'صرف آج تک کے خالی کام کے دنوں کو حاضر لگایا جاتا ہے۔ پہلے سے موجود اندراجات محفوظ رہتے ہیں۔' : 'Only blank workdays through today are marked present. Existing entries stay untouched.'}</small></div><div className="attendance-workflow-actions"><button className="secondary-button" type="button" onClick={focusNextUnrecordedWorkday}>{isUrdu ? 'اگلا غیر ریکارڈ شدہ دن' : 'Next unrecorded workday'}</button><button className="secondary-button" type="button" onClick={fillMonth} disabled={month > getMonthValue()}>{isUrdu ? 'غیر ریکارڈ شدہ دن پر کریں' : 'Fill unrecorded days'}</button></div></div>
         {bulkStatus && <p className="form-status" role="status">{bulkStatus}</p>}
       </section>
-      <AttendanceEditor key={`${selectedDate}:${selectedRecord?.updatedAt ?? 'new'}`} date={selectedDate} record={selectedRecord} salarySettings={salarySettings} />
+      <AttendanceEditor key={`${selectedDate}:${selectedRecord?.updatedAt ?? 'new'}`} date={selectedDate} record={selectedRecord} salarySettings={salarySettings} language={language} />
     </section>
   );
 }
 
-function AttendanceEditor({ date, record, salarySettings }: { date: string; record?: AttendanceRecord; salarySettings: SalarySettings }) {
+function AttendanceEditor({ date, record, salarySettings, language }: { date: string; record?: AttendanceRecord; salarySettings: SalarySettings; language?: AppLanguage }) {
+  const isUrdu = language === 'ur';
+  const activeStatusLabels = isUrdu ? statusLabelsUr : statusLabels;
   const defaultStatus: AttendanceStatus = new Date(`${date}T00:00:00`).getDay() === salarySettings.weeklyOffDay ? 'weekly-off' : 'present';
   const [status, setStatus] = useState<AttendanceStatus>(record?.status ?? defaultStatus);
   const [checkIn, setCheckIn] = useState(record?.checkIn ?? '');
@@ -95,18 +129,19 @@ function AttendanceEditor({ date, record, salarySettings }: { date: string; reco
     setIsSaving(true); setMessage('');
     try {
       await saveAttendanceRecord({ date, status, checkIn: checkIn || null, checkOut: checkOut || null, overtimeMinutes, note: note.trim() });
-      setMessage('Attendance saved locally.');
+      setMessage(isUrdu ? 'حاضری مقامی طور پر محفوظ ہو گئی۔' : 'Attendance saved locally.');
     } catch {
-      setMessage('Could not save this attendance record. Please try again.');
+      setMessage(isUrdu ? 'حاضری محفوظ نہیں ہو سکی۔ دوبارہ کوشش کریں۔' : 'Could not save this attendance record. Please try again.');
     } finally { setIsSaving(false); }
   };
 
-  return <section className="attendance-editor"><div className="editor-heading"><div><p className="eyebrow">DAY RECORD</p><h2>{formatDate(date)}</h2><p>{record ? 'Update a saved record.' : 'No saved record yet—choose the status that fits this day.'}</p></div><span className={`status-label status-${status}`}>{statusLabels[status]}</span></div><form onSubmit={submit}><div className="form-grid"><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value as AttendanceStatus)}>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Overtime (hours)</span><input type="number" min="0" step="0.25" inputMode="decimal" value={overtimeHours} onChange={(event) => setOvertimeHours(event.target.value)} /></label><label className="field"><span>Check in</span><input type="time" value={checkIn} onChange={(event) => setCheckIn(event.target.value)} /></label><label className="field"><span>Check out</span><input type="time" value={checkOut} onChange={(event) => setCheckOut(event.target.value)} /></label></div><label className="field attendance-note"><span>Note</span><input maxLength={140} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional context for this day" /></label><div className="editor-actions"><span role="status">{message}</span><button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? 'Saving…' : 'Save day'} <AppIcon name="shield" aria-hidden="true" size={17} /></button></div></form></section>;
+  return <section className="attendance-editor"><div className="editor-heading"><div><p className="eyebrow">{isUrdu ? 'حاضری ایڈیٹر' : 'DAY RECORD'}</p><h2>{formatDate(date)}</h2><p>{record ? (isUrdu ? 'محفوظ شدہ ریکارڈ میں ترمیم کریں۔' : 'Update a saved record.') : (isUrdu ? 'ابھی کوئی ریکارڈ نہیں — اس دن کے لیے مناسب حالت منتخب کریں۔' : 'No saved record yet—choose the status that fits this day.')}</p></div><span className={`status-label status-${status}`}>{activeStatusLabels[status]}</span></div><form onSubmit={submit}><div className="form-grid"><label className="field"><span>{isUrdu ? 'حالت' : 'Status'}</span><select value={status} onChange={(event) => setStatus(event.target.value as AttendanceStatus)}>{Object.entries(activeStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>{isUrdu ? 'اوور ٹائم (گھنٹے)' : 'Overtime (hours)'}</span><input type="number" min="0" step="0.25" inputMode="decimal" value={overtimeHours} onChange={(event) => setOvertimeHours(event.target.value)} /></label><label className="field"><span>{isUrdu ? 'چیک اِن' : 'Check in'}</span><input type="time" value={checkIn} onChange={(event) => setCheckIn(event.target.value)} /></label><label className="field"><span>{isUrdu ? 'چیک آؤٹ' : 'Check out'}</span><input type="time" value={checkOut} onChange={(event) => setCheckOut(event.target.value)} /></label></div><label className="field attendance-note"><span>{isUrdu ? 'نوٹ' : 'Note'}</span><input maxLength={140} value={note} onChange={(event) => setNote(event.target.value)} placeholder={isUrdu ? 'اس دن کی اضافی تفصیل یا وضاحت' : 'Optional context for this day'} /></label><div className="editor-actions"><span role="status">{message}</span><button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? (isUrdu ? 'محفوظ ہو رہا ہے…' : 'Saving…') : (isUrdu ? 'دن محفوظ کریں' : 'Save day')} <AppIcon name="shield" aria-hidden="true" size={17} /></button></div></form></section>;
 }
 
-function DayButton({ day, record, selected, weeklyOffDay, isFilteredOut, onSelect }: { day: CalendarDay; record?: AttendanceRecord; selected: boolean; weeklyOffDay: number; isFilteredOut: boolean; onSelect: (date: string) => void }) {
+function DayButton({ day, record, selected, weeklyOffDay, isFilteredOut, onSelect, language, statusLabels: labels = statusLabels }: { day: CalendarDay; record?: AttendanceRecord; selected: boolean; weeklyOffDay: number; isFilteredOut: boolean; onSelect: (date: string) => void; language?: AppLanguage; statusLabels?: Record<AttendanceStatus, string> }) {
   const status = record?.status ?? (day.weekday === weeklyOffDay ? 'weekly-off' : '');
-  return <button className={`calendar-day${selected ? ' calendar-day-selected' : ''}${status ? ` calendar-day-${status}` : ''}${isFilteredOut ? ' calendar-day-filtered' : ''}`} type="button" onClick={() => onSelect(day.date)} aria-label={`${formatDate(day.date)}${status ? `, ${statusLabels[status as AttendanceStatus]}` : ', no record'}${isFilteredOut ? ', excluded by active filter' : ''}`}><time dateTime={day.date}>{day.day}</time>{status && <i className={`attendance-status-dot status-${status}`} aria-hidden="true" />}</button>;
+  const isUrdu = language === 'ur';
+  return <button className={`calendar-day${selected ? ' calendar-day-selected' : ''}${status ? ` calendar-day-${status}` : ''}${isFilteredOut ? ' calendar-day-filtered' : ''}`} type="button" onClick={() => onSelect(day.date)} aria-label={`${formatDate(day.date)}${status ? `, ${labels[status as AttendanceStatus]}` : (isUrdu ? '، کوئی ریکارڈ نہیں' : ', no record')}${isFilteredOut ? (isUrdu ? '، فعال فلٹر کے تحت خارج' : ', excluded by active filter') : ''}`}><time dateTime={day.date}>{day.day}</time>{status && <i className={`attendance-status-dot status-${status}`} aria-hidden="true" />}</button>;
 }
 
 function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) { return <article><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>; }
@@ -128,9 +163,15 @@ function getAttendanceStats(records: AttendanceRecord[]) {
   return records.reduce((stats, record) => ({ ...stats, present: stats.present + Number(record.status === 'present'), absent: stats.absent + Number(record.status === 'absent'), leave: stats.leave + Number(record.status === 'leave'), overtimeMinutes: stats.overtimeMinutes + record.overtimeMinutes }), { present: 0, absent: 0, leave: 0, overtimeMinutes: 0 });
 }
 
-function formatOvertime(minutes: number): string {
-  if (!minutes) return '0h';
+function formatOvertime(minutes: number, language?: AppLanguage): string {
+  if (!minutes) return language === 'ur' ? '0 گھنٹے' : '0h';
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
+  if (language === 'ur') {
+    if (!hours) return `${remainder} منٹ`;
+    if (!remainder) return `${hours} گھنٹے`;
+    return `${hours} گھنٹے ${remainder} منٹ`;
+  }
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
+

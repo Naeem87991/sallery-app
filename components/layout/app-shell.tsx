@@ -57,11 +57,18 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
     setLiveMessage(nextVisibility ? translate(language, 'financialValuesVisible') : translate(language, 'financialValuesHidden'));
   };
   const announceAutomaticAttendance = useCallback((date: string) => {
-    setLiveMessage(`Automatic attendance marked present for ${date}.`);
-  }, []);
+    setLiveMessage(language === 'ur' ? `${date} کے لیے خودکار حاضری لگا دی گئی ہے۔` : `Automatic attendance marked present for ${date}.`);
+  }, [language]);
 
-  if (securityLoading) return <main className="app-lock-screen"><span className="app-lock-checking">{translate(language, 'checkingLocalSecurity')}</span></main>;
-  if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) return <AppLockScreen securitySettings={securitySettings} />;
+  if (securityLoading) return <main className="app-lock-screen" dir={language === 'ur' ? 'rtl' : undefined} data-localized-surface><span className="app-lock-checking">{translate(language, 'checkingLocalSecurity')}</span></main>;
+  if (securitySettings?.isPinEnabled && securitySessionVersion !== securitySettings.updatedAt) {
+    return (
+      <div dir={language === 'ur' ? 'rtl' : undefined} data-localized-surface>
+        <LocalizedSurface language={language} />
+        <AppLockScreen securitySettings={securitySettings} language={language} />
+      </div>
+    );
+  }
 
   return (
     <div className={`app-shell${theme === 'light' ? ' app-shell-light' : ''}${financialsVisible ? '' : ' privacy-active'}`} dir={language === 'ur' ? 'rtl' : undefined} data-localized-surface>
