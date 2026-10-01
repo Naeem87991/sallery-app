@@ -8,6 +8,8 @@ out/
 *.tsbuildinfo
 _phase2-build-check/
 _vercel-build-verification/
+test-results/
+playwright-report/
 
 # Local-only retained predecessor implementation
 legacy-prototype/

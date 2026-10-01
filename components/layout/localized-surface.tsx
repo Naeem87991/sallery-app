@@ -390,21 +390,26 @@ const urdu: Record<string, string> = {
   '1042': '1042',
 };
 
-const originalText = new WeakMap<Text, string>();
-const originalAttributes = new WeakMap<Element, Map<string, string>>();
 const translatableAttributes = ['aria-label', 'placeholder', 'title'] as const;
 
 export function LocalizedSurface({ language }: { language: AppLanguage | undefined }) {
   useEffect(() => {
+    if (language !== 'ur') return;
     const root = document.querySelector<HTMLElement>('[data-localized-surface]');
     if (!root) return;
-    const translate = (value: string) => language === 'ur' ? urdu[value] ?? value : value;
+    const originalText = new WeakMap<Text, string>();
+    const lastTranslatedText = new WeakMap<Text, string>();
+    const originalAttributes = new WeakMap<Element, Map<string, string>>();
+    const lastTranslatedAttributes = new WeakMap<Element, Map<string, string>>();
+    const translate = (value: string) => urdu[value] ?? value;
     const updateText = (node: Text) => {
       const parent = node.parentElement;
       if (!parent || parent.closest('[data-user-content]') || ['SCRIPT', 'STYLE'].includes(parent.tagName)) return;
-      const source = originalText.get(node) ?? node.nodeValue ?? '';
-      originalText.set(node, source);
+      const value = node.nodeValue ?? '';
+      if (!originalText.has(node) || (lastTranslatedText.has(node) && value !== lastTranslatedText.get(node))) originalText.set(node, value);
+      const source = originalText.get(node) ?? value;
       const next = translate(source);
+      lastTranslatedText.set(node, next);
       if (node.nodeValue !== next) node.nodeValue = next;
     };
     const updateElement = (element: Element) => {
@@ -414,9 +419,12 @@ export function LocalizedSurface({ language }: { language: AppLanguage | undefin
         if (value === null) return;
         const originals = originalAttributes.get(element) ?? new Map<string, string>();
         if (!originalAttributes.has(element)) originalAttributes.set(element, originals);
+        const translated = lastTranslatedAttributes.get(element) ?? new Map<string, string>();
+        if (!lastTranslatedAttributes.has(element)) lastTranslatedAttributes.set(element, translated);
+        if (!originals.has(attribute) || (translated.has(attribute) && value !== translated.get(attribute))) originals.set(attribute, value);
         const source = originals.get(attribute) ?? value;
-        originals.set(attribute, source);
         const next = translate(source);
+        translated.set(attribute, next);
         if (value !== next) element.setAttribute(attribute, next);
       });
     };
@@ -433,9 +441,10 @@ export function LocalizedSurface({ language }: { language: AppLanguage | undefin
     updateTree(root);
     const observer = new MutationObserver((records) => records.forEach((record) => {
       if (record.type === 'characterData') updateText(record.target as Text);
+      if (record.type === 'attributes') updateElement(record.target as Element);
       record.addedNodes.forEach(updateTree);
     }));
-    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    observer.observe(root, { attributes: true, attributeFilter: [...translatableAttributes], childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
   }, [language]);
 
