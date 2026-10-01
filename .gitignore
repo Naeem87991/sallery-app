@@ -24,3 +24,6 @@ Thumbs.db
 .idea/
 .vscode/
 .vercel
+
+# Agent tooling state
+.codex/
