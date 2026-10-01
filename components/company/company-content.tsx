@@ -36,7 +36,7 @@ export function CompanyContent() {
     <section className="company-page">
       <header className="page-heading"><div><p className="eyebrow">{t('companyLedger')}</p><h1>{t('companyTitle')}</h1><p className="page-subtitle">{t('companySubtitle')}</p></div></header>
       <section className="company-balance-card"><div><p className="eyebrow">{t('currentCompanyBalance')}</p><strong className={balance < 0 ? 'balance-negative' : ''}>{formatCurrency(balance)}</strong><p>{balance >= 0 ? t('availableCompanyCredit') : t('companyDeductions')}</p></div><span className="local-pill"><span className="pulse-dot" />{t('localLedger')}</span></section>
-      <div className="company-summary"><SummaryCard label={t('credits')} amount={credits} tone="credit" language={language} /><SummaryCard label={t('deductions')} amount={debits} tone="debit" language={language} /><SummaryCard label={t('loansDue')} amount={outstandingLoans} tone="debit" language={language} /><SummaryCard label={t('entries')} amount={transactions.length} tone="neutral" language={language} /></div>
+      <div className="company-summary cards-grid"><SummaryCard label={t('credits')} amount={credits} tone="credit" language={language} /><SummaryCard label={t('deductions')} amount={debits} tone="debit" language={language} /><SummaryCard label={t('loansDue')} amount={outstandingLoans} tone="debit" language={language} /><SummaryCard label={t('entries')} amount={transactions.length} tone="neutral" language={language} /></div>
       <LoanPanel loans={loanSnapshots} language={language} />
       <div className="company-layout"><TransactionForm language={language} /><TransactionList transactions={transactions} language={language} /></div>
     </section>
@@ -136,7 +136,7 @@ function SummaryCard({ label, amount, tone, language }: { label: string; amount:
   const isUrdu = language === 'ur';
   const subtitle = tone === 'credit' ? (isUrdu ? 'بیلنس میں شامل' : 'added to balance') : tone === 'debit' ? (isUrdu ? 'کٹوتی / بقایا' : 'reduced / outstanding') : (isUrdu ? 'مقامی طور پر محفوظ' : 'saved locally');
   return (
-    <article>
+    <article className="card">
       <span>{label}</span>
       <strong className={tone === 'credit' ? 'transaction-credit' : tone === 'debit' ? 'transaction-debit' : ''}>{tone === 'neutral' ? amount : formatCurrency(amount)}</strong>
       <small>{subtitle}</small>

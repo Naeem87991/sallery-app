@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import { AutomaticAttendanceController } from '@/components/attendance/automatic-attendance-controller';
 import { AppLockScreen } from '@/components/security/app-lock-screen';
 import { LocalizedSurface } from '@/components/layout/localized-surface';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+import { MobileHeader } from '@/components/layout/mobile-header';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 import { useSecuritySettings } from '@/hooks/use-security-settings';
@@ -89,23 +91,10 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
       </aside>
 
       <div className="app-main">
-        <header className="mobile-header">
-          <Brand compact />
-          <button
-            className="icon-button"
-            type="button"
-            aria-label={translate(language, financialsVisible ? 'hideFinancialValues' : 'showFinancialValues')}
-            aria-pressed={!financialsVisible}
-            onClick={toggleFinancialVisibility}
-          >
-            {financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={19} /> : <AppIcon name="eye-off" aria-hidden="true" size={19} />}
-          </button>
-        </header>
+        <MobileHeader financialsVisible={financialsVisible} language={language} onToggleVisibility={toggleFinancialVisibility} />
         <main className="page-content" id="main-content" tabIndex={-1}>{children}</main>
       </div>
-      <nav className="bottom-navigation" aria-label={translate(language, 'primaryNavigation')}>
-        {primaryNavigation.map((item) => <NavLink key={item.key} item={{ ...item, label: translate(language, item.labelKey) }} active={activePage === item.key || pathname === item.href} />)}
-      </nav>
+      <MobileBottomNav activePage={activePage} pathname={pathname} language={language} />
     </div>
   );
 }

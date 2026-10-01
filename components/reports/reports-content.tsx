@@ -68,7 +68,7 @@ export function ReportsContent() {
   return (
     <section className="reports-page">
       <header className="page-heading"><div><p className="eyebrow">{isUrdu ? 'مقامی رپورٹس' : 'LOCAL REPORTS'}</p><h1>{isUrdu ? 'اپنے ریکارڈ ساتھ لے جائیں۔' : 'Take your records with you.'}</h1><p className="page-subtitle">{isUrdu ? 'ایکسپورٹس اسی ڈیوائس کے ریکارڈ سے آپ کے براؤزر میں بنتی ہیں۔ کچھ سرور پر نہیں جاتا۔' : 'Exports are prepared in your browser from this device\'s records. Nothing is sent to a server.'}</p></div></header>
-      <section className="reports-overview">
+      <section className="reports-overview cards-grid">
         <ReportMetric label={isUrdu ? 'کمپنی بیلنس' : 'Company balance'} value={formatCurrency(reportTemplate.companyBalance)} language={language} />
         <ReportMetric label={isUrdu ? 'ذاتی رقم' : 'Personal pocket'} value={formatCurrency(reportTemplate.pocketBalance)} language={language} />
         <ReportMetric label={isUrdu ? 'محفوظ شدہ ریکارڈز' : 'Saved records'} value={String(attendance.length + companyTransactions.length + pocketTransactions.length + careerRecords.length)} language={language} />
@@ -84,6 +84,6 @@ export function ReportsContent() {
   );
 }
 
-function ReportMetric({ label, value, language }: { label: string; value: string; language?: AppLanguage }) { return <article><span>{label}</span><strong>{value}</strong><small>{language === 'ur' ? 'مقامی ریکارڈ سے' : 'from local records'}</small></article>; }
+function ReportMetric({ label, value, language }: { label: string; value: string; language?: AppLanguage }) { return <article className="card"><span>{label}</span><strong>{value}</strong><small>{language === 'ur' ? 'مقامی ریکارڈ سے' : 'from local records'}</small></article>; }
 
 function SetupRequired() { return <section className="feature-placeholder"><span className="placeholder-icon"><AppIcon name="file" aria-hidden="true" size={28} /></span><p className="eyebrow">LOCAL REPORTS</p><h1>Set up your workspace first.</h1><p>Reports use the private records created after local salary setup.</p><Link className="primary-button" href="/onboarding">Start setup <AppIcon name="arrow-right" aria-hidden="true" size={17} /></Link></section>; }

@@ -78,7 +78,7 @@ export function AttendanceContent() {
   return (
     <section className="attendance-page">
       <header className="page-heading"><div><p className="eyebrow">{t('attendancePage')}</p><h1>{t('attendanceTitle')}</h1><p className="page-subtitle">{t('attendanceSubtitle')}</p></div></header>
-      <div className="attendance-summary" aria-label={isUrdu ? 'ماہانہ حاضری کا خلاصہ' : 'Monthly attendance summary'}>
+      <div className="attendance-summary cards-grid" aria-label={isUrdu ? 'ماہانہ حاضری کا خلاصہ' : 'Monthly attendance summary'}>
         <SummaryCard label={isUrdu ? 'ریکارڈ شدہ' : 'Recorded'} value={String(records.length)} detail={isUrdu ? 'اس ماہ کے دن' : 'days this month'} />
         <SummaryCard label={isUrdu ? 'حاضر' : 'Present'} value={String(stats.present)} detail={isUrdu ? 'مکمل دن' : 'full days'} />
         <SummaryCard label={isUrdu ? 'چھٹی' : 'Time off'} value={String(stats.absent + stats.leave)} detail={isUrdu ? 'غیر حاضر یا رخصت' : 'absent or leave'} />
@@ -144,7 +144,7 @@ function DayButton({ day, record, selected, weeklyOffDay, isFilteredOut, onSelec
   return <button className={`calendar-day${selected ? ' calendar-day-selected' : ''}${status ? ` calendar-day-${status}` : ''}${isFilteredOut ? ' calendar-day-filtered' : ''}`} type="button" onClick={() => onSelect(day.date)} aria-label={`${formatDate(day.date)}${status ? `, ${labels[status as AttendanceStatus]}` : (isUrdu ? '، کوئی ریکارڈ نہیں' : ', no record')}${isFilteredOut ? (isUrdu ? '، فعال فلٹر کے تحت خارج' : ', excluded by active filter') : ''}`}><time dateTime={day.date}>{day.day}</time>{status && <i className={`attendance-status-dot status-${status}`} aria-hidden="true" />}</button>;
 }
 
-function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) { return <article><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>; }
+function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) { return <article className="card"><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>; }
 
 function SetupRequired() { return <section className="feature-placeholder"><span className="placeholder-icon"><AppIcon name="calendar" aria-hidden="true" size={28} /></span><p className="eyebrow">ATTENDANCE</p><h1>Set up your workspace first.</h1><p>Attendance follows the shift and weekly-off rules you choose during setup.</p><Link className="primary-button" href="/onboarding">Start setup <AppIcon name="arrow-right" aria-hidden="true" size={17} /></Link></section>; }
 
