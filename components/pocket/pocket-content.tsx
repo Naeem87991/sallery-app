@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- Receipt images are local data URLs and must not be sent to an image optimizer. */
 
 import Link from 'next/link';
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getPocketBalance, isPocketDebit } from '@/lib/calculations/pocket-balance';
 import { addPocketTransaction, addSavingsGoal, addSavingsTransfer, clearUdhaarReminder, deletePocketTransaction, deleteSavingsGoal, updateSavingsGoal } from '@/lib/database/repository';
@@ -115,7 +115,48 @@ function TransactionList({ transactions, goals, language }: { transactions: Pock
   const isUrdu = language === 'ur';
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<PocketTransaction | null>(null);
+  const receiptDialogRef = useRef<HTMLDivElement>(null);
+  const receiptCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const receiptTriggerRef = useRef<HTMLButtonElement>(null);
   const goalNames = new Map(goals.map((goal) => [goal.id, goal.name]));
+  useEffect(() => {
+    if (!viewingReceipt) return;
+
+    const trigger = receiptTriggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    const focusCloseButton = window.setTimeout(() => receiptCloseButtonRef.current?.focus(), 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setViewingReceipt(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const dialog = receiptDialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusCloseButton);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (trigger?.isConnected) trigger.focus();
+    };
+  }, [viewingReceipt]);
   const remove = async (transaction: PocketTransaction) => {
     const typeLabel = isUrdu ? transactionLabelsUr[transaction.type] : transactionLabels[transaction.type];
     if (!window.confirm(isUrdu ? `کیا آپ ${formatDate(transaction.occurredOn)} سے ${typeLabel} ہٹانا چاہتے ہیں؟` : `Remove ${transactionLabels[transaction.type].toLowerCase()} from ${formatDate(transaction.occurredOn)}?`)) return;
@@ -136,7 +177,7 @@ function TransactionList({ transactions, goals, language }: { transactions: Pock
                   <span className={`transaction-type pocket-${transaction.type}`}>{isUrdu ? transactionLabelsUr[transaction.type] : transactionLabels[transaction.type]}</span>
                   <div><strong data-user-content>{transaction.note || (isUrdu ? 'کوئی نوٹ نہیں' : 'No note added')}</strong><small>{formatDate(transaction.occurredOn)} · {goalName ? <span data-user-content>{goalName}</span> : (isUrdu ? categoryLabelsUr[transaction.category] : categoryLabels[transaction.category])}</small></div>
                   <b className={isDebit ? 'transaction-debit' : 'transaction-credit'}>{isDebit ? '−' : '+'}{formatCurrency(transaction.amount)}</b>
-                  {transaction.receiptDataUrl ? <button className="receipt-view-button" type="button" onClick={() => setViewingReceipt(transaction)}>{isUrdu ? 'رسید' : 'Receipt'}</button> : null}
+                  {transaction.receiptDataUrl ? <button className="receipt-view-button" type="button" onClick={(event) => { receiptTriggerRef.current = event.currentTarget; setViewingReceipt(transaction); }}>{isUrdu ? 'رسید' : 'Receipt'}</button> : null}
                   <button className="remove-button" type="button" disabled={removingId === transaction.id} onClick={() => remove(transaction)} aria-label={isUrdu ? `${transactionLabelsUr[transaction.type]} ہٹائیں` : `Remove ${transactionLabels[transaction.type]} entry`}>{removingId === transaction.id ? '…' : (isUrdu ? 'ہٹائیں' : 'Remove')}</button>
                 </li>
               );
@@ -147,9 +188,10 @@ function TransactionList({ transactions, goals, language }: { transactions: Pock
         )}
       </section>
       {viewingReceipt?.receiptDataUrl ? (
-        <div className="receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="receipt-title">
+        <div ref={receiptDialogRef} className="receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="receipt-title" aria-describedby="receipt-description" tabIndex={-1} onMouseDown={(event) => { if (event.target === event.currentTarget) setViewingReceipt(null); }}>
           <div>
-            <div className="receipt-dialog-heading"><h2 id="receipt-title">{isUrdu ? `رسید · ${formatDate(viewingReceipt.occurredOn)}` : `Receipt · ${formatDate(viewingReceipt.occurredOn)}`}</h2><button className="remove-button" type="button" onClick={() => setViewingReceipt(null)}>{isUrdu ? 'بند کریں' : 'Close'}</button></div>
+            <p id="receipt-description" className="sr-only">{isUrdu ? 'رسید دیکھنے کا مکالمہ۔ اسے بند کرنے کے لیے Escape دبائیں۔' : 'Receipt viewer dialog. Press Escape to close it.'}</p>
+            <div className="receipt-dialog-heading"><h2 id="receipt-title">{isUrdu ? `رسید · ${formatDate(viewingReceipt.occurredOn)}` : `Receipt · ${formatDate(viewingReceipt.occurredOn)}`}</h2><button ref={receiptCloseButtonRef} className="remove-button" type="button" onClick={() => setViewingReceipt(null)}>{isUrdu ? 'بند کریں' : 'Close'}</button></div>
             <img src={viewingReceipt.receiptDataUrl} alt={isUrdu ? `${formatCurrency(viewingReceipt.amount)} کی رسید` : `Receipt for ${formatCurrency(viewingReceipt.amount)} ${viewingReceipt.note ? `— ${viewingReceipt.note}` : ''}`} />
           </div>
         </div>

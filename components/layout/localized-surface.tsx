@@ -254,6 +254,8 @@ const urdu: Record<string, string> = {
   'Download encrypted backup': 'خفیہ بیک اپ ڈاؤن لوڈ کریں',
   'Decrypt and preview': 'ڈیکرپٹ کر کے جائزہ لیں',
   'Replace local data with this backup': 'مقامی ڈیٹا کو اس بیک اپ سے تبدیل کریں',
+  'Type ': 'لکھیں ',
+  ' to enable this irreversible action.': ' اس ناقابل واپسی عمل کو فعال کرنے کے لیے۔',
   'Restoring…': 'بحالی جاری ہے…',
   'Preparing…': 'تیاری جاری ہے…',
   'Checking…': 'چیک ہو رہا ہے…',
@@ -439,4 +441,3 @@ export function LocalizedSurface({ language }: { language: AppLanguage | undefin
 
   return null;
 }
-
