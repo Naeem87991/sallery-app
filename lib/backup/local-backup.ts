@@ -1,6 +1,8 @@
 import 'client-only';
 
-import { DATABASE_SCHEMA_VERSION, db } from '@/lib/database/database';
+import { DATABASE_SCHEMA_VERSION } from '@/lib/database/database';
+import { readSupabaseBackupData } from '@/lib/backup/supabase-backup';
+import { createClient } from '@/lib/supabase/client';
 import { base64ToBytes, bytesToBase64, toArrayBuffer } from '@/lib/security/pin';
 import { assertAppPreferences, assertAttendanceInput, assertCareerRecordInput, assertCompanyLoanInput, assertCompanyTransactionInput, assertPocketTransactionInput, assertProfile, assertSalaryRules, assertSavingsGoalInput } from '@/lib/validation/domain';
 import type { AppSettings, AttendanceRecord, CareerRecord, CompanyLoan, CompanyTransaction, PocketCategory, PocketTransaction, SalarySettings, SavingsGoal, UserProfile } from '@/types/domain';
@@ -109,14 +111,114 @@ export function getBackupSummary(backup: DecryptedBackup): BackupSummary {
 }
 
 export async function restoreBackup(backup: DecryptedBackup): Promise<void> {
-  await db.transaction('rw', [db.profiles, db.salarySettings, db.appSettings, db.attendanceRecords, db.companyTransactions, db.companyLoans, db.pocketTransactions, db.savingsGoals, db.careerRecords], async () => {
-    await Promise.all([
-      db.profiles.clear(), db.salarySettings.clear(), db.appSettings.clear(), db.attendanceRecords.clear(), db.companyTransactions.clear(), db.companyLoans.clear(), db.pocketTransactions.clear(), db.savingsGoals.clear(), db.careerRecords.clear(),
-    ]);
-    await Promise.all([
-      db.profiles.bulkPut(backup.data.profiles), db.salarySettings.bulkPut(backup.data.salarySettings), db.appSettings.bulkPut(backup.data.appSettings), db.attendanceRecords.bulkPut(backup.data.attendanceRecords), db.companyTransactions.bulkPut(backup.data.companyTransactions), db.companyLoans.bulkPut(backup.data.companyLoans), db.pocketTransactions.bulkPut(backup.data.pocketTransactions), db.savingsGoals.bulkPut(backup.data.savingsGoals), db.careerRecords.bulkPut(backup.data.careerRecords),
-    ]);
-  });
+  const sb = createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) throw new Error('You must be signed in to restore a backup.');
+  const uid = user.id;
+
+  // Delete all existing data for this user first
+  await Promise.all([
+    sb.from('attendance_records').delete().eq('user_id', uid),
+    sb.from('company_transactions').delete().eq('user_id', uid),
+    sb.from('company_loans').delete().eq('user_id', uid),
+    sb.from('pocket_transactions').delete().eq('user_id', uid),
+    sb.from('savings_goals').delete().eq('user_id', uid),
+    sb.from('career_records').delete().eq('user_id', uid),
+  ]);
+
+  // Upsert profile (merged UserProfile + SalarySettings)
+  if (backup.data.profiles.length && backup.data.salarySettings.length) {
+    const p = backup.data.profiles[0];
+    const s = backup.data.salarySettings[0];
+    await sb.from('profiles').upsert({
+      user_id: uid,
+      first_name: p.firstName, last_name: p.lastName,
+      employee_id: p.employeeId, designation: p.designation,
+      joining_date: p.joiningDate,
+      salary_mode: s.salaryMode, base_salary: s.baseSalary,
+      daily_rate: s.dailyRate, salary_calculation_rule: s.salaryCalculationRule,
+      duty_start: s.dutyStart, duty_end: s.dutyEnd,
+      shift_duration_hours: s.shiftDurationHours, weekly_off_day: s.weeklyOffDay,
+      is_weekly_off_paid: s.isWeeklyOffPaid, auto_attendance_rule: s.autoAttendanceRule,
+      auto_attendance_time: s.autoAttendanceTime, half_day_factor: s.halfDayFactor,
+      currency: 'PKR',
+    }, { onConflict: 'user_id' });
+  }
+
+  // Upsert app settings
+  if (backup.data.appSettings.length) {
+    const a = backup.data.appSettings[0];
+    await sb.from('app_settings').upsert({
+      user_id: uid, theme: a.theme, language: a.language,
+      is_privacy_mode_enabled: a.isPrivacyModeEnabled,
+      low_cash_threshold: a.lowCashThreshold,
+    }, { onConflict: 'user_id' });
+  }
+
+  // Insert attendance
+  if (backup.data.attendanceRecords.length) {
+    await sb.from('attendance_records').insert(
+      backup.data.attendanceRecords.map((r) => ({
+        user_id: uid, date: r.date, status: r.status,
+        check_in: r.checkIn, check_out: r.checkOut,
+        overtime_minutes: r.overtimeMinutes, note: r.note,
+      }))
+    );
+  }
+
+  // Insert company loans first (transactions reference them)
+  if (backup.data.companyLoans.length) {
+    await sb.from('company_loans').insert(
+      backup.data.companyLoans.map((r) => ({
+        id: r.id, user_id: uid, name: r.name,
+        principal_amount: r.principalAmount, issued_on: r.issuedOn, note: r.note,
+      }))
+    );
+  }
+
+  // Insert company transactions
+  if (backup.data.companyTransactions.length) {
+    await sb.from('company_transactions').insert(
+      backup.data.companyTransactions.map((r) => ({
+        id: r.id, user_id: uid, type: r.type, amount: r.amount,
+        occurred_on: r.occurredOn, note: r.note, loan_id: r.loanId,
+      }))
+    );
+  }
+
+  // Insert savings goals first (pocket transactions reference them)
+  if (backup.data.savingsGoals.length) {
+    await sb.from('savings_goals').insert(
+      backup.data.savingsGoals.map((r) => ({
+        id: r.id, user_id: uid, name: r.name,
+        target_amount: r.targetAmount, saved_amount: r.savedAmount,
+        target_date: r.targetDate, note: r.note,
+      }))
+    );
+  }
+
+  // Insert pocket transactions
+  if (backup.data.pocketTransactions.length) {
+    await sb.from('pocket_transactions').insert(
+      backup.data.pocketTransactions.map((r) => ({
+        id: r.id, user_id: uid, type: r.type, amount: r.amount,
+        occurred_on: r.occurredOn, note: r.note, category: r.category,
+        receipt_data_url: r.receiptDataUrl, savings_goal_id: r.savingsGoalId,
+        reminder_on: r.reminderOn,
+      }))
+    );
+  }
+
+  // Insert career records
+  if (backup.data.careerRecords.length) {
+    await sb.from('career_records').insert(
+      backup.data.careerRecords.map((r) => ({
+        id: r.id, user_id: uid, company_name: r.companyName,
+        designation: r.designation, start_date: r.startDate,
+        end_date: r.endDate, monthly_salary: r.monthlySalary, note: r.note,
+      }))
+    );
+  }
 }
 
 export function validateNewPassphrase(passphrase: string): void {
@@ -124,10 +226,7 @@ export function validateNewPassphrase(passphrase: string): void {
 }
 
 async function readBackupData(): Promise<BackupData> {
-  const [profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, companyLoans, pocketTransactions, savingsGoals, careerRecords] = await Promise.all([
-    db.profiles.toArray(), db.salarySettings.toArray(), db.appSettings.toArray(), db.attendanceRecords.toArray(), db.companyTransactions.toArray(), db.companyLoans.toArray(), db.pocketTransactions.toArray(), db.savingsGoals.toArray(), db.careerRecords.toArray(),
-  ]);
-  return { profiles, salarySettings, appSettings, attendanceRecords, companyTransactions, companyLoans, pocketTransactions, savingsGoals, careerRecords };
+  return readSupabaseBackupData();
 }
 
 async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations: number): Promise<CryptoKey> {

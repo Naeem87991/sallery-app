@@ -27,3 +27,13 @@ Thumbs.db
 
 # Agent tooling state
 .codex/
+
+# Agent task artifacts (investigation notes, not application code)
+.agents/
+
+# Standalone sub-projects (own repos)
+designpro-hero/
+
+# Scratch files
+phase2-review.txt
+docs/project-overview-report.md

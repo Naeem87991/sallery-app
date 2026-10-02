@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AutomaticAttendanceController } from '@/components/attendance/automatic-attendance-controller';
 import { AppLockScreen } from '@/components/security/app-lock-screen';
@@ -11,6 +11,7 @@ import { MobileHeader } from '@/components/layout/mobile-header';
 import { AppIcon, type AppIconName } from '@/components/ui/app-icon';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 import { useSecuritySettings } from '@/hooks/use-security-settings';
+import { createClient } from '@/lib/supabase/client';
 import { getSecuritySessionVersion, subscribeToSecuritySession } from '@/lib/security/session-lock';
 import { translate } from '@/lib/i18n/translations';
 
@@ -38,6 +39,7 @@ const secondaryNavigation: Array<Omit<NavItem, 'label'> & { labelKey: 'careerHis
 
 export function AppShell({ children, activePage }: { children: ReactNode; activePage: PageKey }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { records } = useCurrentAppRecords();
   const { settings: securitySettings, isLoading: securityLoading } = useSecuritySettings();
   const securitySessionVersion = useSecuritySessionVersion();
@@ -58,6 +60,13 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
     setVisibilityOverride(nextVisibility);
     setLiveMessage(nextVisibility ? translate(language, 'financialValuesVisible') : translate(language, 'financialValuesHidden'));
   };
+
+  const handleSignOut = async () => {
+    const sb = createClient();
+    await sb.auth.signOut();
+    router.push('/login');
+  };
+
   const announceAutomaticAttendance = useCallback((date: string) => {
     setLiveMessage(language === 'ur' ? `${date} کے لیے خودکار حاضری لگا دی گئی ہے۔` : `Automatic attendance marked present for ${date}.`);
   }, [language]);
@@ -85,6 +94,16 @@ export function AppShell({ children, activePage }: { children: ReactNode; active
         <Navigation items={secondaryNavigation} activePage={activePage} pathname={pathname} language={language} subtle />
         <div className="sidebar-bottom">
           <button className="sidebar-privacy-button" type="button" aria-label={translate(language, financialsVisible ? 'hideFinancialValues' : 'showFinancialValues')} aria-pressed={!financialsVisible} onClick={toggleFinancialVisibility}>{financialsVisible ? <AppIcon name="eye" aria-hidden="true" size={15} /> : <AppIcon name="eye-off" aria-hidden="true" size={15} />}{translate(language, financialsVisible ? 'hideValues' : 'showValues')}</button>
+          <button
+            className="sidebar-privacy-button"
+            type="button"
+            onClick={handleSignOut}
+            aria-label={language === 'ur' ? 'سائن آؤٹ کریں' : 'Sign out'}
+            style={{ color: 'var(--muted)', marginTop: '2px' }}
+          >
+            <AppIcon name="arrow-right" aria-hidden="true" size={15} />
+            {language === 'ur' ? 'سائن آؤٹ' : 'Sign out'}
+          </button>
           <div className="offline-indicator"><span className="pulse-dot" />{translate(language, 'offlineReady')}</div>
           <p>{translate(language, 'privateByDesign')}<br />{translate(language, 'storedOnDevice')}</p>
         </div>
