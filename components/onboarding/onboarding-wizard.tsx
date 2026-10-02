@@ -4,7 +4,9 @@ import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
 import { LocalizedSurface } from '@/components/layout/localized-surface';
-import { defaultAppSettings, defaultSalarySettings, saveOnboarding } from '@/lib/database/repository';
+import { defaultAppSettings, defaultSalarySettings } from '@/lib/database/repository';
+import { upsertProfile, upsertAppSettings } from '@/lib/supabase/repository';
+import { useAuth } from '@/hooks/use-auth';
 import type { AppLanguage, AppTheme, AutoAttendanceRule, SalaryCalculationRule, SalaryMode } from '@/types/domain';
 
 type FormState = {
@@ -47,6 +49,7 @@ const initialForm: FormState = {
 
 export function OnboardingWizard() {
   const router = useRouter();
+  const { userId } = useAuth();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialForm);
   const [error, setError] = useState('');
@@ -78,16 +81,47 @@ export function OnboardingWizard() {
   const finishSetup = async () => {
     const validation = validationError();
     if (validation) { setError(validation); return; }
+    if (!userId) { setError('You must be signed in to save your workspace.'); return; }
     setError(''); setIsSaving(true);
     try {
-      await saveOnboarding({
-        profile: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), employeeId: form.employeeId.trim(), designation: form.designation.trim(), joiningDate: form.joiningDate },
-        salarySettings: { salaryMode: form.salaryMode, baseSalary: Number(form.baseSalary), dailyRate: form.salaryMode === 'daily-rate' ? Number(form.dailyRate) : null, salaryCalculationRule: form.calculationRule, dutyStart: form.dutyStart, dutyEnd: form.dutyEnd, shiftDurationHours: Number(form.shiftHours), weeklyOffDay: Number(form.weeklyOff), isWeeklyOffPaid: form.weeklyOffPaid, autoAttendanceRule: form.autoAttendance, autoAttendanceTime: form.autoAttendance === 'custom-time' ? form.autoAttendanceTime || null : null, halfDayFactor: 0.5, currency: 'PKR' },
-        appSettings: { theme: form.theme, language: form.language, isPrivacyModeEnabled: form.privacyMode, lowCashThreshold: 0 },
-      });
+      const profilePayload = {
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        employee_id: form.employeeId.trim(),
+        designation: form.designation.trim(),
+        joining_date: form.joiningDate,
+        salary_mode: form.salaryMode,
+        base_salary: Number(form.baseSalary),
+        daily_rate: form.salaryMode === 'daily-rate' ? Number(form.dailyRate) : null,
+        salary_calculation_rule: form.calculationRule,
+        duty_start: form.dutyStart,
+        duty_end: form.dutyEnd,
+        shift_duration_hours: Number(form.shiftHours),
+        weekly_off_day: Number(form.weeklyOff),
+        is_weekly_off_paid: form.weeklyOffPaid,
+        auto_attendance_rule: form.autoAttendance,
+        auto_attendance_time: form.autoAttendance === 'custom-time' ? form.autoAttendanceTime || null : null,
+        half_day_factor: 0.5,
+        currency: 'PKR',
+      };
+      const settingsPayload = {
+        theme: form.theme,
+        language: form.language,
+        is_privacy_mode_enabled: form.privacyMode,
+        low_cash_threshold: 0,
+      };
+      const [profileResult, settingsResult] = await Promise.all([
+        upsertProfile(userId, profilePayload),
+        upsertAppSettings(userId, settingsPayload),
+      ]);
+      if (profileResult.error) throw new Error(profileResult.error);
+      if (settingsResult.error) throw new Error(settingsResult.error);
       router.replace('/');
-    } catch {
-      setError(isUrdu ? 'آپ کا ڈیٹا مقامی طور پر محفوظ نہیں ہو سکا۔ براؤزر کی اجازتیں چیک کر کے دوبارہ کوشش کریں۔' : 'Your data could not be saved locally. Check private browsing permissions and try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(isUrdu
+        ? `آپ کا ڈیٹا محفوظ نہیں ہو سکا: ${msg}`
+        : `Your data could not be saved: ${msg}`);
       setIsSaving(false);
     }
   };
@@ -105,7 +139,7 @@ export function OnboardingWizard() {
         <div className="wizard-actions">
           <button className="secondary-button" type="button" disabled={step === 0 || isSaving} onClick={() => { setError(''); setStep((current) => Math.max(current - 1, 0)); }}>{isUrdu ? 'پیچھے' : 'Back'}</button>
           {step === 2 ? (
-            <button className="primary-button" type="button" disabled={isSaving} onClick={finishSetup}>{isSaving ? (isUrdu ? 'مقامی طور پر محفوظ ہو رہا ہے…' : 'Saving locally…') : (isUrdu ? 'سیٹ اپ مکمل کریں' : 'Finish setup')} <AppIcon name="shield" aria-hidden="true" size={17} /></button>
+            <button className="primary-button" type="button" disabled={isSaving} onClick={finishSetup}>{isSaving ? (isUrdu ? 'محفوظ ہو رہا ہے…' : 'Saving…') : (isUrdu ? 'سیٹ اپ مکمل کریں' : 'Finish setup')} <AppIcon name="shield" aria-hidden="true" size={17} /></button>
           ) : (
             <button className="primary-button" type="button" onClick={continueSetup}>{isUrdu ? 'جاری رکھیں' : 'Continue'} <AppIcon name="arrow-right" aria-hidden="true" size={17} /></button>
           )}

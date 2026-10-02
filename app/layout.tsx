@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     default: 'Live Salary Ticker',
     template: '%s · Live Salary Ticker',
   },
-  description: 'A private, offline-first salary and finance workspace.',
+  description: 'A private, cloud-backed salary and finance workspace.',
   applicationName: 'Live Salary Ticker',
   manifest: '/manifest.webmanifest',
   appleWebApp: {

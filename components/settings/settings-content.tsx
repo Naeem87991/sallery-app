@@ -5,13 +5,14 @@ import { useState, type ReactNode } from 'react';
 import { BackupPanel } from '@/components/settings/backup-panel';
 import { SecurityPanel } from '@/components/settings/security-panel';
 import { AppIcon } from '@/components/ui/app-icon';
-import { updateAppSettings, updateProfile, updateSalarySettings } from '@/lib/database/repository';
+import { upsertProfile, upsertAppSettings } from '@/lib/supabase/repository';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
+import { useAuth } from '@/hooks/use-auth';
 import { useAppTranslation } from '@/hooks/use-app-translation';
 import type { AppSettings, SalarySettings, UserProfile } from '@/types/domain';
 
 export function SettingsContent() {
-  const { records, isLoading, isOnboarded } = useCurrentAppRecords();
+  const { records, isLoading, isOnboarded, refetch } = useCurrentAppRecords();
 
   if (isLoading) return <section className="dashboard-loading" aria-live="polite">Loading local settings…</section>;
   const profile = records?.profile;
@@ -19,11 +20,12 @@ export function SettingsContent() {
   const preferences = records?.appSettings;
   if (!isOnboarded || !profile || !salary || !preferences) return <section className="feature-placeholder"><span className="placeholder-icon"><AppIcon name="settings" aria-hidden="true" size={28} /></span><p className="eyebrow">SETTINGS</p><h1>Set up your workspace first.</h1><p>Profile and salary rules are stored locally after onboarding.</p><Link className="primary-button" href="/onboarding">Start setup <AppIcon name="arrow-right" aria-hidden="true" size={17} /></Link></section>;
 
-  return <SettingsForm key={`${profile.updatedAt}:${salary.updatedAt}:${preferences.updatedAt}`} initialProfile={profile} initialSalary={salary} initialPreferences={preferences} />;
+  return <SettingsForm key={`${profile.updatedAt}:${salary.updatedAt}:${preferences.updatedAt}`} initialProfile={profile} initialSalary={salary} initialPreferences={preferences} onSaved={refetch} />;
 }
 
-function SettingsForm({ initialProfile, initialSalary, initialPreferences }: { initialProfile: UserProfile; initialSalary: SalarySettings; initialPreferences: AppSettings }) {
+function SettingsForm({ initialProfile, initialSalary, initialPreferences, onSaved }: { initialProfile: UserProfile; initialSalary: SalarySettings; initialPreferences: AppSettings; onSaved: () => void }) {
   const { t } = useAppTranslation();
+  const { userId } = useAuth();
   const [profile, setProfile] = useState(initialProfile);
   const [salary, setSalary] = useState(initialSalary);
   const [preferences, setPreferences] = useState(initialPreferences);
@@ -31,10 +33,48 @@ function SettingsForm({ initialProfile, initialSalary, initialPreferences }: { i
   const [isSaving, setIsSaving] = useState(false);
 
   const save = async () => {
+    if (!userId) { setStatus('Not signed in.'); return; }
     setIsSaving(true); setStatus('');
-    try { await Promise.all([updateProfile(profile), updateSalarySettings(salary), updateAppSettings(preferences)]); setStatus(t('savedLocally')); }
-    catch { setStatus('Could not save changes locally. Please try again.'); }
-    finally { setIsSaving(false); }
+    try {
+      const profilePayload = {
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        employee_id: profile.employeeId,
+        designation: profile.designation,
+        joining_date: profile.joiningDate,
+        salary_mode: salary.salaryMode,
+        base_salary: salary.baseSalary,
+        daily_rate: salary.dailyRate,
+        salary_calculation_rule: salary.salaryCalculationRule,
+        duty_start: salary.dutyStart,
+        duty_end: salary.dutyEnd,
+        shift_duration_hours: salary.shiftDurationHours,
+        weekly_off_day: salary.weeklyOffDay,
+        is_weekly_off_paid: salary.isWeeklyOffPaid,
+        auto_attendance_rule: salary.autoAttendanceRule,
+        auto_attendance_time: salary.autoAttendanceTime,
+        half_day_factor: salary.halfDayFactor,
+        currency: salary.currency,
+      };
+      const settingsPayload = {
+        theme: preferences.theme,
+        language: preferences.language,
+        is_privacy_mode_enabled: preferences.isPrivacyModeEnabled,
+        low_cash_threshold: preferences.lowCashThreshold,
+      };
+      const [pr, sr] = await Promise.all([
+        upsertProfile(userId, profilePayload),
+        upsertAppSettings(userId, settingsPayload),
+      ]);
+      if (pr.error) throw new Error(pr.error);
+      if (sr.error) throw new Error(sr.error);
+      setStatus(t('savedLocally'));
+      onSaved();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Could not save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

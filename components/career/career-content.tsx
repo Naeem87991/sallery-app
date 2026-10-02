@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { calculateCareerRecordEarnings, calculateCurrentRoleEarnings, getCareerLifetimeEarnings, getEstimatedMonthlySalary } from '@/lib/calculations/career-earnings';
-import { addCareerRecord, deleteCareerRecord } from '@/lib/database/repository';
+import { addCareerRecord, deleteCareerRecord } from '@/lib/supabase/repository';
+import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/formatting/currency';
 import { formatDate } from '@/lib/formatting/date';
 import { useCareerRecords } from '@/hooks/use-career-records';
@@ -15,12 +16,13 @@ import type { AppLanguage, CareerRecord } from '@/types/domain';
 export function CareerContent() {
   const { t } = useAppTranslation();
   const { records: appRecords, isLoading, isOnboarded } = useCurrentAppRecords();
-  const { records, isLoading: recordsLoading } = useCareerRecords();
+  const { records, isLoading: recordsLoading, refetch } = useCareerRecords();
+  const { userId } = useAuth();
   const today = useToday();
   if (isLoading || recordsLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingCareer')}</section>;
   const profile = appRecords?.profile;
   const salarySettings = appRecords?.salarySettings;
-  if (!isOnboarded || !profile || !salarySettings) return <SetupRequired />;
+  if (!isOnboarded || !profile || !salarySettings || !userId) return <SetupRequired />;
 
   const language = appRecords?.appSettings?.language;
   const isUrdu = language === 'ur';
@@ -39,7 +41,7 @@ export function CareerContent() {
         <div><span className="current-role-dot" /><div><p className="eyebrow">{t('currentRole')}</p><h2 data-user-content>{profile.designation || t('currentPosition')}</h2><p><span data-user-content>{profile.firstName}</span> {t('currentRoleSince')} {formatDate(profile.joiningDate)}</p></div></div>
         <div><strong>{formatCurrency(currentMonthlySalary)}</strong><small>{t('estimatedMonthlySalary')}</small></div>
       </section>
-      <div className="career-layout"><CareerForm language={language} /><CareerList records={records} language={language} /></div>
+      <div className="career-layout"><CareerForm language={language} userId={userId} onSaved={refetch} /><CareerList records={records} language={language} userId={userId} onDeleted={refetch} /></div>
     </section>
   );
 }
@@ -55,7 +57,7 @@ function useToday() {
   return today;
 }
 
-function CareerForm({ language }: { language?: AppLanguage }) {
+function CareerForm({ language, userId, onSaved }: { language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [companyName, setCompanyName] = useState('');
   const [designation, setDesignation] = useState('');
@@ -74,11 +76,13 @@ function CareerForm({ language }: { language?: AppLanguage }) {
     }
     setIsSaving(true); setStatus('');
     try {
-      await addCareerRecord({ companyName: companyName.trim(), designation: designation.trim(), startDate, endDate, monthlySalary: parsedSalary, note: note.trim() });
+      const result = await addCareerRecord(userId, { company_name: companyName.trim(), designation: designation.trim(), start_date: startDate, end_date: endDate, monthly_salary: parsedSalary, note: note.trim() });
+      if (result.error) throw new Error(result.error);
       setCompanyName(''); setDesignation(''); setStartDate(''); setEndDate(''); setMonthlySalary(''); setNote('');
-      setStatus(isUrdu ? 'گزشتہ عہدہ مقامی طور پر محفوظ ہو گیا۔' : 'Past role saved locally.');
-    } catch {
-      setStatus(isUrdu ? 'یہ کیریئر ریکارڈ محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔' : 'Could not save this career record. Please try again.');
+      setStatus(isUrdu ? 'گزشتہ عہدہ محفوظ ہو گیا۔' : 'Past role saved.');
+      onSaved();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : (isUrdu ? 'یہ کیریئر ریکارڈ محفوظ نہیں ہو سکا۔' : 'Could not save this career record.'));
     } finally {
       setIsSaving(false);
     }
@@ -98,13 +102,13 @@ function CareerForm({ language }: { language?: AppLanguage }) {
   );
 }
 
-function CareerList({ records, language }: { records: CareerRecord[]; language?: AppLanguage }) {
+function CareerList({ records, language, userId, onDeleted }: { records: CareerRecord[]; language?: AppLanguage; userId: string; onDeleted: () => void }) {
   const isUrdu = language === 'ur';
   const [removingId, setRemovingId] = useState<string | null>(null);
   const remove = async (record: CareerRecord) => {
     if (!window.confirm(isUrdu ? `کیا آپ اپنے کیریئر ریکارڈ سے ${record.companyName} کو ہٹانا چاہتے ہیں؟` : `Remove ${record.companyName} from your career history?`)) return;
     setRemovingId(record.id);
-    try { await deleteCareerRecord(record.id); }
+    try { const result = await deleteCareerRecord(userId, record.id); if (!result.error) onDeleted(); }
     finally { setRemovingId(null); }
   };
   return (

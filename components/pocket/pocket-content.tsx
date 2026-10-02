@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getPocketBalance, isPocketDebit } from '@/lib/calculations/pocket-balance';
-import { addPocketTransaction, addSavingsGoal, addSavingsTransfer, clearUdhaarReminder, deletePocketTransaction, deleteSavingsGoal, updateSavingsGoal } from '@/lib/database/repository';
+import { addPocketTransaction, addSavingsGoal, updateSavingsGoal, deletePocketTransaction, deleteSavingsGoal, updatePocketTransaction } from '@/lib/supabase/repository';
+import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/formatting/currency';
 import { formatDate, getLocalDateValue } from '@/lib/formatting/date';
 import { MAX_RECEIPT_DATA_URL_LENGTH, pocketCategories } from '@/lib/validation/domain';
@@ -24,10 +25,11 @@ const maxReceiptBytes = 1_000_000;
 
 export function PocketContent() {
   const { t } = useAppTranslation();
+  const { userId } = useAuth();
   const { records, isLoading, isOnboarded } = useCurrentAppRecords();
-  const { transactions, goals, isLoading: recordsLoading } = usePocketRecords();
+  const { transactions, goals, isLoading: recordsLoading, refetch } = usePocketRecords();
   if (isLoading || recordsLoading) return <section className="dashboard-loading" aria-live="polite">Loading your private pocket…</section>;
-  if (!isOnboarded) return <SetupRequired />;
+  if (!isOnboarded || !userId) return <SetupRequired />;
 
   const language = records?.appSettings?.language;
   const isUrdu = language === 'ur';
@@ -44,19 +46,19 @@ export function PocketContent() {
       <section className="pocket-balance-card"><div><p className="eyebrow">{isUrdu ? 'دستیاب کیش' : 'AVAILABLE CASH'}</p><strong className={balance < 0 ? 'balance-negative' : ''}>{formatCurrency(balance)}</strong><p>{balance >= 0 ? (isUrdu ? 'مقامی طور پر ریکارڈ شدہ ذاتی رقم' : 'Personal money recorded locally') : (isUrdu ? 'اخراجات وصول شدہ رقم سے زیادہ ہیں' : 'Outgoing entries exceed incoming money')}</p></div><span className="local-pill"><span className="pulse-dot" />{isUrdu ? 'نجی اور مقامی' : 'Private & local'}</span></section>
       {threshold > 0 && balance <= threshold ? <section className="pocket-alert" role="status"><AppIcon name="wallet" aria-hidden="true" size={20} /><div><strong>{t('lowCashAlert')}</strong><span>{isUrdu ? `${formatCurrency(balance)} آپ کی مقرر کردہ حد ${formatCurrency(threshold)} کے برابر یا اس سے کم ہے۔` : `${formatCurrency(balance)} is at or below your ${formatCurrency(threshold)} threshold.`}</span></div><Link href="/settings" className="secondary-button">{t('adjust')}</Link></section> : null}
       <div className="company-summary pocket-summary"><SummaryCard label={isUrdu ? 'آمد' : 'Money in'} amount={incoming} tone="credit" language={language} /><SummaryCard label={isUrdu ? 'اخراجات' : 'Money out'} amount={outgoing} tone="debit" language={language} /><SummaryCard label={isUrdu ? 'بچت کا ہدف' : 'Saved toward goals'} amount={saved} tone="neutral" language={language} /></div>
-      {reminders.length ? <UdhaarReminderPanel reminders={reminders} language={language} /> : null}
-      <div className="pocket-layout"><TransactionForm language={language} /><TransactionList transactions={transactions} goals={goals} language={language} /></div>
-      <section className="transfer-section"><div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'سیونگ ٹرانسفر' : 'SAVINGS TRANSFER'}</p><h2>{isUrdu ? 'پیسے منتقل کریں بغیر ٹریک کھوئے۔' : 'Move money without losing the trail.'}</h2></div></div><SavingsTransferForm goals={goals} language={language} /></section>
-      <section className="savings-section"><div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'سیونگز گولز' : 'SAVINGS GOALS'}</p><h2>{isUrdu ? 'ہر بچت کو ایک مقصد دیں۔' : 'Give every saving a purpose.'}</h2></div><span className="progress-label">{goals.length} {isUrdu ? 'گولز' : 'goals'}</span></div><div className="savings-layout"><SavingsGoalForm language={language} /><div className="savings-goal-list">{goals.length ? goals.map((goal) => <SavingsGoalCard key={goal.id} goal={goal} language={language} />) : <div className="ledger-empty"><AppIcon name="wallet" aria-hidden="true" size={24} /><p>{isUrdu ? 'ابھی کوئی سیونگ گول نہیں ہے۔' : 'No savings goals yet.'}</p><span>{isUrdu ? 'ذاتی کیش منتقل کرنے سے پہلے ایک ہدف بنائیں۔' : 'Create a target before moving pocket cash into it.'}</span></div>}</div></div></section>
+      {reminders.length ? <UdhaarReminderPanel reminders={reminders} language={language} userId={userId} onCleared={refetch} /> : null}
+      <div className="pocket-layout"><TransactionForm language={language} userId={userId} onSaved={refetch} /><TransactionList transactions={transactions} goals={goals} language={language} userId={userId} onDeleted={refetch} /></div>
+      <section className="transfer-section"><div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'سیونگ ٹرانسفر' : 'SAVINGS TRANSFER'}</p><h2>{isUrdu ? 'پیسے منتقل کریں بغیر ٹریک کھوئے۔' : 'Move money without losing the trail.'}</h2></div></div><SavingsTransferForm goals={goals} language={language} userId={userId} onSaved={refetch} /></section>
+      <section className="savings-section"><div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'سیونگز گولز' : 'SAVINGS GOALS'}</p><h2>{isUrdu ? 'ہر بچت کو ایک مقصد دیں۔' : 'Give every saving a purpose.'}</h2></div><span className="progress-label">{goals.length} {isUrdu ? 'گولز' : 'goals'}</span></div><div className="savings-layout"><SavingsGoalForm language={language} userId={userId} onSaved={refetch} /><div className="savings-goal-list">{goals.length ? goals.map((goal) => <SavingsGoalCard key={goal.id} goal={goal} language={language} userId={userId} onChanged={refetch} />) : <div className="ledger-empty"><AppIcon name="wallet" aria-hidden="true" size={24} /><p>{isUrdu ? 'ابھی کوئی سیونگ گول نہیں ہے۔' : 'No savings goals yet.'}</p><span>{isUrdu ? 'ذاتی کیش منتقل کرنے سے پہلے ایک ہدف بنائیں۔' : 'Create a target before moving pocket cash into it.'}</span></div>}</div></div></section>
     </section>
   );
 }
 
-function TransactionForm({ language }: { language?: AppLanguage }) {
+function TransactionForm({ language, userId, onSaved }: { language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [type, setType] = useState<PocketTransactionType>('cash-in'); const [amount, setAmount] = useState(''); const [occurredOn, setOccurredOn] = useState(getLocalDateValue); const [category, setCategory] = useState<PocketCategory>('other'); const [note, setNote] = useState(''); const [reminderOn, setReminderOn] = useState(''); const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false);
-  const selectReceipt = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxReceiptBytes) { setStatus(isUrdu ? '1 MB سے کم سائز کی JPG, PNG یا WebP رسید منتخب کریں۔' : 'Choose a JPG, PNG, or WebP receipt no larger than 1 MB.'); return; } try { const dataUrl = await readReceipt(file); if (dataUrl.length > MAX_RECEIPT_DATA_URL_LENGTH) throw new Error(); setReceiptDataUrl(dataUrl); setStatus(isUrdu ? 'رسید کی تصویر تیار ہے اور صرف اسی ڈیوائس پر رہے گی۔' : 'Receipt image is ready and will stay on this device.'); } catch { setStatus(isUrdu ? 'رسید کی تصویر نہیں پڑھی جا سکی۔' : 'Could not read that receipt image.'); } };
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ رقم درج کریں۔' : 'Enter an amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { await addPocketTransaction({ type, amount: parsedAmount, occurredOn, category, note: note.trim(), receiptDataUrl, savingsGoalId: null, reminderOn: type === 'udhaar-given' ? reminderOn || null : null }); setAmount(''); setNote(''); setCategory('other'); setReminderOn(''); setReceiptDataUrl(null); setStatus(isUrdu ? 'اندراج مقامی طور پر محفوظ ہو گیا۔' : 'Pocket entry saved locally.'); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'اندراج محفوظ نہیں ہو سکا۔' : 'Could not save this pocket entry.')); } finally { setIsSaving(false); } };
+  const selectReceipt = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > maxReceiptBytes) { setStatus(isUrdu ? '1 MB سے کم سائز کی JPG, PNG یا WebP رسید منتخب کریں۔' : 'Choose a JPG, PNG, or WebP receipt no larger than 1 MB.'); return; } try { const dataUrl = await readReceipt(file); if (dataUrl.length > MAX_RECEIPT_DATA_URL_LENGTH) throw new Error(); setReceiptDataUrl(dataUrl); setStatus(isUrdu ? 'رسید کی تصویر تیار ہے۔' : 'Receipt image is ready.'); } catch { setStatus(isUrdu ? 'رسید کی تصویر نہیں پڑھی جا سکی۔' : 'Could not read that receipt image.'); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ رقم درج کریں۔' : 'Enter an amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { const result = await addPocketTransaction(userId, { type, amount: parsedAmount, occurred_on: occurredOn, category, note: note.trim(), receipt_data_url: receiptDataUrl, savings_goal_id: null, reminder_on: type === 'udhaar-given' ? reminderOn || null : null }); if (result.error) throw new Error(result.error); setAmount(''); setNote(''); setCategory('other'); setReminderOn(''); setReceiptDataUrl(null); setStatus(isUrdu ? 'اندراج محفوظ ہو گیا۔' : 'Pocket entry saved.'); onSaved(); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'اندراج محفوظ نہیں ہو سکا۔' : 'Could not save this pocket entry.')); } finally { setIsSaving(false); } };
   return (
     <section className="company-entry-form">
       <div><p className="eyebrow">{isUrdu ? 'نیا اندراج' : 'NEW POCKET ENTRY'}</p><h2>{isUrdu ? 'رقم درج کریں۔' : 'Record a movement.'}</h2><p>{isUrdu ? 'زمرہ جات، رسیدوں کی تصاویر اور ادھار یاد دہانیاں صرف اسی ڈیوائس پر رہتی ہیں۔' : 'Categories, receipt images, and Udhaar reminders remain only on this device.'}</p></div>
@@ -73,11 +75,28 @@ function TransactionForm({ language }: { language?: AppLanguage }) {
   );
 }
 
-function SavingsTransferForm({ goals, language }: { goals: SavingsGoal[]; language?: AppLanguage }) {
+function SavingsTransferForm({ goals, language, userId, onSaved }: { goals: SavingsGoal[]; language?: AppLanguage; userId: string; onSaved: () => void }) {
   const { t } = useAppTranslation();
   const isUrdu = language === 'ur';
   const [direction, setDirection] = useState<'to-goal' | 'from-goal'>('to-goal'); const [goalId, setGoalId] = useState(''); const [amount, setAmount] = useState(''); const [occurredOn, setOccurredOn] = useState(getLocalDateValue); const [note, setNote] = useState(''); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const value = Number(amount); if (!goalId || !Number.isFinite(value) || value <= 0) { setStatus(isUrdu ? 'گول منتخب کریں اور صفر سے زیادہ رقم درج کریں۔' : 'Choose a goal and enter an amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { await addSavingsTransfer({ direction, savingsGoalId: goalId, amount: value, occurredOn, note: note.trim() }); setAmount(''); setNote(''); setStatus(t('transferSaved')); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'یہ ٹرانسفر محفوظ نہیں ہو سکا۔' : 'Could not save this transfer.')); } finally { setIsSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = Number(amount);
+    if (!goalId || !Number.isFinite(value) || value <= 0) { setStatus(isUrdu ? 'گول منتخب کریں اور صفر سے زیادہ رقم درج کریں۔' : 'Choose a goal and enter an amount greater than zero.'); return; }
+    const goal = goals.find((g) => g.id === goalId);
+    if (direction === 'from-goal' && goal && value > goal.savedAmount) { setStatus(isUrdu ? 'رقم گول کی موجودہ بچت سے زیادہ نہیں ہو سکتی۔' : 'Amount cannot exceed the goal\'s current savings.'); return; }
+    setIsSaving(true); setStatus('');
+    try {
+      const txType = direction === 'to-goal' ? 'savings-transfer-out' : 'savings-transfer-in';
+      const txResult = await addPocketTransaction(userId, { type: txType, amount: value, occurred_on: occurredOn, note: note.trim() || (direction === 'to-goal' ? `Moved to ${goal?.name}` : `Moved from ${goal?.name}`), category: 'other', receipt_data_url: null, savings_goal_id: goalId, reminder_on: null });
+      if (txResult.error) throw new Error(txResult.error);
+      const newSaved = (goal?.savedAmount ?? 0) + (direction === 'to-goal' ? value : -value);
+      const goalResult = await updateSavingsGoal(userId, goalId, { saved_amount: newSaved });
+      if (goalResult.error) throw new Error(goalResult.error);
+      setAmount(''); setNote(''); setStatus(t('transferSaved')); onSaved();
+    } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'یہ ٹرانسفر محفوظ نہیں ہو سکا۔' : 'Could not save this transfer.')); }
+    finally { setIsSaving(false); }
+  };
   if (!goals.length) return <p className="form-hint">{isUrdu ? 'پہلے سیونگ گول بنائیں۔ پھر ٹرانسفرز خودکار طور پر لیجر اور گول کو اپ ڈیٹ کر دیں گے۔' : 'Create a savings goal first. Transfers then create a linked pocket ledger entry and update that goal automatically.'}</p>;
   return (
     <form className="transfer-form" onSubmit={submit}>
@@ -90,10 +109,10 @@ function SavingsTransferForm({ goals, language }: { goals: SavingsGoal[]; langua
   );
 }
 
-function UdhaarReminderPanel({ reminders, language }: { reminders: PocketTransaction[]; language?: AppLanguage }) {
+function UdhaarReminderPanel({ reminders, language, userId, onCleared }: { reminders: PocketTransaction[]; language?: AppLanguage; userId: string; onCleared: () => void }) {
   const isUrdu = language === 'ur';
   const [clearingId, setClearingId] = useState<string | null>(null); const [status, setStatus] = useState(''); const today = getLocalDateValue();
-  const clear = async (id: string) => { setClearingId(id); setStatus(''); try { await clearUdhaarReminder(id); setStatus(isUrdu ? 'یاد دہانی صاف ہو گئی؛ ادھار کا اندراج محفوظ رہے گا۔' : 'Reminder cleared; the Udhaar ledger entry remains saved.'); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'یاد دہانی صاف نہیں ہو سکی۔' : 'Could not clear this reminder.')); } finally { setClearingId(null); } };
+  const clear = async (id: string) => { setClearingId(id); setStatus(''); try { const result = await updatePocketTransaction(userId, id, { reminder_on: null }); if (result.error) throw new Error(result.error); setStatus(isUrdu ? 'یاد دہانی صاف ہو گئی۔' : 'Reminder cleared.'); onCleared(); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'یاد دہانی صاف نہیں ہو سکی۔' : 'Could not clear this reminder.')); } finally { setClearingId(null); } };
   return (
     <section className="udhaar-reminders">
       <div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'ادھار یاد دہانیاں' : 'UDHAAR REMINDERS'}</p><h2>{isUrdu ? 'دی گئی رقم کا تعاقب کریں۔' : 'Follow up on money lent.'}</h2></div><span className="progress-label">{reminders.length} {isUrdu ? 'شیڈول شدہ' : 'scheduled'}</span></div>
@@ -111,7 +130,7 @@ function UdhaarReminderPanel({ reminders, language }: { reminders: PocketTransac
   );
 }
 
-function TransactionList({ transactions, goals, language }: { transactions: PocketTransaction[]; goals: SavingsGoal[]; language?: AppLanguage }) {
+function TransactionList({ transactions, goals, language, userId, onDeleted }: { transactions: PocketTransaction[]; goals: SavingsGoal[]; language?: AppLanguage; userId: string; onDeleted: () => void }) {
   const isUrdu = language === 'ur';
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<PocketTransaction | null>(null);
@@ -161,7 +180,7 @@ function TransactionList({ transactions, goals, language }: { transactions: Pock
     const typeLabel = isUrdu ? transactionLabelsUr[transaction.type] : transactionLabels[transaction.type];
     if (!window.confirm(isUrdu ? `کیا آپ ${formatDate(transaction.occurredOn)} سے ${typeLabel} ہٹانا چاہتے ہیں؟` : `Remove ${transactionLabels[transaction.type].toLowerCase()} from ${formatDate(transaction.occurredOn)}?`)) return;
     setRemovingId(transaction.id);
-    try { await deletePocketTransaction(transaction.id); } finally { setRemovingId(null); }
+    try { const result = await deletePocketTransaction(userId, transaction.id); if (!result.error) onDeleted(); } finally { setRemovingId(null); }
   };
   return (
     <>
@@ -200,10 +219,10 @@ function TransactionList({ transactions, goals, language }: { transactions: Pock
   );
 }
 
-function SavingsGoalForm({ language }: { language?: AppLanguage }) {
+function SavingsGoalForm({ language, userId, onSaved }: { language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [name, setName] = useState(''); const [targetAmount, setTargetAmount] = useState(''); const [savedAmount, setSavedAmount] = useState(''); const [targetDate, setTargetDate] = useState(''); const [note, setNote] = useState(''); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const target = Number(targetAmount); const saved = savedAmount === '' ? 0 : Number(savedAmount); if (!name.trim() || !Number.isFinite(target) || target <= 0 || !Number.isFinite(saved) || saved < 0) { setStatus(isUrdu ? 'ایک نام، صفر سے زیادہ ہدف اور درست محفوظ شدہ رقم درج کریں۔' : 'Add a name, a target above zero, and a valid saved amount.'); return; } setIsSaving(true); setStatus(''); try { await addSavingsGoal({ name: name.trim(), targetAmount: target, savedAmount: saved, targetDate: targetDate || null, note: note.trim() }); setName(''); setTargetAmount(''); setSavedAmount(''); setTargetDate(''); setNote(''); setStatus(isUrdu ? 'سیونگ گول مقامی طور پر بن گیا۔' : 'Savings goal created locally.'); } catch { setStatus(isUrdu ? 'سیونگ گول نہیں بن سکا۔ دوبارہ کوشش کریں۔' : 'Could not create this savings goal. Please try again.'); } finally { setIsSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const target = Number(targetAmount); const saved = savedAmount === '' ? 0 : Number(savedAmount); if (!name.trim() || !Number.isFinite(target) || target <= 0 || !Number.isFinite(saved) || saved < 0) { setStatus(isUrdu ? 'ایک نام، صفر سے زیادہ ہدف اور درست محفوظ شدہ رقم درج کریں۔' : 'Add a name, a target above zero, and a valid saved amount.'); return; } setIsSaving(true); setStatus(''); try { const result = await addSavingsGoal(userId, { name: name.trim(), target_amount: target, saved_amount: saved, target_date: targetDate || null, note: note.trim() }); if (result.error) throw new Error(result.error); setName(''); setTargetAmount(''); setSavedAmount(''); setTargetDate(''); setNote(''); setStatus(isUrdu ? 'سیونگ گول بن گیا۔' : 'Savings goal created.'); onSaved(); } catch (err) { setStatus(err instanceof Error ? err.message : (isUrdu ? 'سیونگ گول نہیں بن سکا۔' : 'Could not create this savings goal.')); } finally { setIsSaving(false); } };
   return (
     <form className="savings-goal-form" onSubmit={submit}>
       <p className="eyebrow">{isUrdu ? 'نیا ہدف' : 'NEW TARGET'}</p>
@@ -216,11 +235,11 @@ function SavingsGoalForm({ language }: { language?: AppLanguage }) {
   );
 }
 
-function SavingsGoalCard({ goal, language }: { goal: SavingsGoal; language?: AppLanguage }) {
+function SavingsGoalCard({ goal, language, userId, onChanged }: { goal: SavingsGoal; language?: AppLanguage; userId: string; onChanged: () => void }) {
   const isUrdu = language === 'ur';
   const [savedAmount, setSavedAmount] = useState(String(goal.savedAmount)); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false); const percentage = Math.min(100, (goal.savedAmount / goal.targetAmount) * 100);
-  const saveProgress = async () => { const nextSavedAmount = Number(savedAmount); if (!Number.isFinite(nextSavedAmount) || nextSavedAmount < 0) { setStatus(isUrdu ? 'درست محفوظ شدہ رقم درج کریں۔' : 'Enter a valid saved amount.'); return; } setIsSaving(true); setStatus(''); try { await updateSavingsGoal({ ...goal, savedAmount: nextSavedAmount }); setStatus(isUrdu ? 'پیشرفت محفوظ ہو گئی۔' : 'Progress saved.'); } catch { setStatus(isUrdu ? 'پیشرفت محفوظ نہیں ہو سکی۔' : 'Could not save progress.'); } finally { setIsSaving(false); } };
-  const remove = async () => { if (window.confirm(isUrdu ? `کیا آپ ${goal.name} سیونگ گول ہٹانا چاہتے ہیں؟` : `Remove the ${goal.name} savings goal?`)) await deleteSavingsGoal(goal.id); };
+  const saveProgress = async () => { const nextSavedAmount = Number(savedAmount); if (!Number.isFinite(nextSavedAmount) || nextSavedAmount < 0) { setStatus(isUrdu ? 'درست محفوظ شدہ رقم درج کریں۔' : 'Enter a valid saved amount.'); return; } setIsSaving(true); setStatus(''); try { const result = await updateSavingsGoal(userId, goal.id, { saved_amount: nextSavedAmount }); if (result.error) throw new Error(result.error); setStatus(isUrdu ? 'پیشرفت محفوظ ہو گئی۔' : 'Progress saved.'); onChanged(); } catch (err) { setStatus(err instanceof Error ? err.message : (isUrdu ? 'پیشرفت محفوظ نہیں ہو سکی۔' : 'Could not save progress.')); } finally { setIsSaving(false); } };
+  const remove = async () => { if (window.confirm(isUrdu ? `کیا آپ ${goal.name} سیونگ گول ہٹانا چاہتے ہیں؟` : `Remove the ${goal.name} savings goal?`)) { const result = await deleteSavingsGoal(userId, goal.id); if (!result.error) onChanged(); else alert(result.error); } };
   return (
     <article className="savings-goal-card">
       <div className="goal-card-heading"><div><strong data-user-content>{goal.name}</strong><small>{goal.targetDate ? (isUrdu ? `ہدف تاریخ: ${formatDate(goal.targetDate)}` : `Target: ${formatDate(goal.targetDate)}`) : (isUrdu ? 'کوئی ہدف تاریخ نہیں' : 'No target date')}</small></div><button className="remove-button" type="button" onClick={remove}>{isUrdu ? 'ہٹائیں' : 'Remove'}</button></div>

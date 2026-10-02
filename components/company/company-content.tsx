@@ -8,7 +8,8 @@ import { useCompanyTransactions } from '@/hooks/use-company-transactions';
 import { useCurrentAppRecords } from '@/hooks/use-current-app-records';
 import { useAppTranslation } from '@/hooks/use-app-translation';
 import { getCompanyBalance, getCompanyLoanSnapshots, getTotalLoanOutstanding, isCompanyDebit, type CompanyLoanSnapshot } from '@/lib/calculations/company-balance';
-import { addCompanyLoan, addCompanyLoanRepayment, addCompanyTransaction, deleteCompanyTransaction } from '@/lib/database/repository';
+import { addCompanyLoan, addCompanyTransaction, deleteCompanyTransaction } from '@/lib/supabase/repository';
+import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/formatting/currency';
 import { formatDate, getLocalDateValue } from '@/lib/formatting/date';
 import type { AppLanguage, CompanyTransaction, CompanyTransactionType } from '@/types/domain';
@@ -20,11 +21,12 @@ type ManualCompanyTransactionType = typeof manualTransactionTypes[number];
 
 export function CompanyContent() {
   const { t } = useAppTranslation();
+  const { userId } = useAuth();
   const { records, isLoading, isOnboarded } = useCurrentAppRecords();
-  const { transactions, isLoading: transactionsLoading } = useCompanyTransactions();
-  const { loans, isLoading: loansLoading } = useCompanyLoans();
+  const { transactions, isLoading: transactionsLoading, refetch: refetchTx } = useCompanyTransactions();
+  const { loans, isLoading: loansLoading, refetch: refetchLoans } = useCompanyLoans();
   if (isLoading || transactionsLoading || loansLoading) return <section className="dashboard-loading" aria-live="polite">{t('loadingCompany')}</section>;
-  if (!isOnboarded) return <SetupRequired />;
+  if (!isOnboarded || !userId) return <SetupRequired />;
 
   const language = records?.appSettings?.language;
   const balance = getCompanyBalance(transactions);
@@ -32,21 +34,22 @@ export function CompanyContent() {
   const debits = transactions.filter((transaction) => isCompanyDebit(transaction.type)).reduce((total, transaction) => total + transaction.amount, 0);
   const loanSnapshots = getCompanyLoanSnapshots(loans, transactions);
   const outstandingLoans = getTotalLoanOutstanding(loans, transactions);
+  const refetch = () => { refetchTx(); refetchLoans(); };
   return (
     <section className="company-page">
       <header className="page-heading"><div><p className="eyebrow">{t('companyLedger')}</p><h1>{t('companyTitle')}</h1><p className="page-subtitle">{t('companySubtitle')}</p></div></header>
       <section className="company-balance-card"><div><p className="eyebrow">{t('currentCompanyBalance')}</p><strong className={balance < 0 ? 'balance-negative' : ''}>{formatCurrency(balance)}</strong><p>{balance >= 0 ? t('availableCompanyCredit') : t('companyDeductions')}</p></div><span className="local-pill"><span className="pulse-dot" />{t('localLedger')}</span></section>
       <div className="company-summary cards-grid"><SummaryCard label={t('credits')} amount={credits} tone="credit" language={language} /><SummaryCard label={t('deductions')} amount={debits} tone="debit" language={language} /><SummaryCard label={t('loansDue')} amount={outstandingLoans} tone="debit" language={language} /><SummaryCard label={t('entries')} amount={transactions.length} tone="neutral" language={language} /></div>
-      <LoanPanel loans={loanSnapshots} language={language} />
-      <div className="company-layout"><TransactionForm language={language} /><TransactionList transactions={transactions} language={language} /></div>
+      <LoanPanel loans={loanSnapshots} language={language} userId={userId} onSaved={refetch} />
+      <div className="company-layout"><TransactionForm language={language} userId={userId} onSaved={refetchTx} /><TransactionList transactions={transactions} language={language} userId={userId} onDeleted={refetchTx} /></div>
     </section>
   );
 }
 
-function LoanPanel({ loans, language }: { loans: CompanyLoanSnapshot[]; language?: AppLanguage }) {
+function LoanPanel({ loans, language, userId, onSaved }: { loans: CompanyLoanSnapshot[]; language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [name, setName] = useState(''); const [principalAmount, setPrincipalAmount] = useState(''); const [issuedOn, setIssuedOn] = useState(getLocalDateValue); const [note, setNote] = useState(''); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const amount = Number(principalAmount); if (!Number.isFinite(amount) || amount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ اصل رقم درج کریں۔' : 'Enter a principal amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { await addCompanyLoan({ name: name.trim(), principalAmount: amount, issuedOn, note: note.trim() }); setName(''); setPrincipalAmount(''); setNote(''); setStatus(isUrdu ? 'قرض جاری ہو گیا اور کمپنی لیجر میں محفوظ ہو گیا۔' : 'Loan issued and saved in the company ledger.'); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'قرض محفوظ نہیں ہو سکا۔' : 'Could not save the loan.')); } finally { setIsSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const amount = Number(principalAmount); if (!Number.isFinite(amount) || amount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ اصل رقم درج کریں۔' : 'Enter a principal amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { const loanResult = await addCompanyLoan(userId, { name: name.trim(), principal_amount: amount, issued_on: issuedOn, note: note.trim() }); if (loanResult.error) throw new Error(loanResult.error); const txResult = await addCompanyTransaction(userId, { type: 'loan', amount, occurred_on: issuedOn, note: note.trim() || name.trim(), loan_id: loanResult.data!.id }); if (txResult.error) throw new Error(txResult.error); setName(''); setPrincipalAmount(''); setNote(''); setStatus(isUrdu ? 'قرض جاری ہو گیا۔' : 'Loan issued.'); onSaved(); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'قرض محفوظ نہیں ہو سکا۔' : 'Could not save the loan.')); } finally { setIsSaving(false); } };
   return (
     <section className="loan-section">
       <div className="panel-heading"><div><p className="eyebrow">{isUrdu ? 'قرض ٹریکر' : 'LOAN TRACKER'}</p><h2>{isUrdu ? 'کمپنی کے قرضے جاری اور مکمل کریں۔' : 'Issue and settle company loans.'}</h2></div><span className="progress-label">{loans.filter((loan) => !loan.isSettled).length} {isUrdu ? 'جاری' : 'open'}</span></div>
@@ -58,16 +61,16 @@ function LoanPanel({ loans, language }: { loans: CompanyLoanSnapshot[]; language
           <label className="field"><span>{isUrdu ? 'نوٹ' : 'Note'}</span><input maxLength={140} value={note} onChange={(event) => setNote(event.target.value)} placeholder={isUrdu ? 'اختیاری وضاحت' : 'Optional explanation'} /></label>
           <div className="editor-actions"><span role="status">{status}</span><button className="primary-button" type="submit" disabled={isSaving}>{isSaving ? (isUrdu ? 'محفوظ ہو رہا ہے…' : 'Saving…') : (isUrdu ? 'قرض جاری کریں' : 'Issue loan')} <AppIcon name="plus" aria-hidden="true" size={17} /></button></div>
         </form>
-        <div className="loan-list">{loans.length ? loans.map((loan) => <LoanCard key={loan.id} loan={loan} language={language} />) : <div className="ledger-empty"><AppIcon name="building" aria-hidden="true" size={24} /><p>{isUrdu ? 'ابھی کوئی ٹریک شدہ قرض نہیں ہے۔' : 'No tracked loans yet.'}</p><span>{isUrdu ? 'بقایا رقم اور واپسیوں کو ٹریک کرنے کے لیے کمپنی قرض جاری کریں۔' : 'Issue a company loan to track its outstanding amount and repayments.'}</span></div>}</div>
+      <div className="loan-list">{loans.length ? loans.map((loan) => <LoanCard key={loan.id} loan={loan} language={language} userId={userId} onSaved={onSaved} />) : <div className="ledger-empty"><AppIcon name="building" aria-hidden="true" size={24} /><p>{isUrdu ? 'ابھی کوئی ٹریک شدہ قرض نہیں ہے۔' : 'No tracked loans yet.'}</p><span>{isUrdu ? 'بقایا رقم اور واپسیوں کو ٹریک کرنے کے لیے کمپنی قرض جاری کریں۔' : 'Issue a company loan to track its outstanding amount and repayments.'}</span></div>}</div>
       </div>
     </section>
   );
 }
 
-function LoanCard({ loan, language }: { loan: CompanyLoanSnapshot; language?: AppLanguage }) {
+function LoanCard({ loan, language, userId, onSaved }: { loan: CompanyLoanSnapshot; language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [amount, setAmount] = useState(''); const [occurredOn, setOccurredOn] = useState(getLocalDateValue); const [note, setNote] = useState(''); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false); const progress = Math.round((loan.repaidAmount / loan.principalAmount) * 100);
-  const repay = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ واپسی کی رقم درج کریں۔' : 'Enter a repayment amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { await addCompanyLoanRepayment({ loanId: loan.id, amount: parsedAmount, occurredOn, note: note.trim() }); setAmount(''); setNote(''); setStatus(isUrdu ? 'واپسی محفوظ ہو گئی۔' : 'Repayment saved.'); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'واپسی محفوظ نہیں ہو سکی۔' : 'Could not save the repayment.')); } finally { setIsSaving(false); } };
+  const repay = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ واپسی کی رقم درج کریں۔' : 'Enter a repayment amount greater than zero.'); return; } if (parsedAmount > loan.outstandingAmount) { setStatus(isUrdu ? 'واپسی بقایا رقم سے زیادہ نہیں ہو سکتی۔' : 'Repayment cannot exceed the outstanding amount.'); return; } setIsSaving(true); setStatus(''); try { const result = await addCompanyTransaction(userId, { type: 'loan-repayment', amount: parsedAmount, occurred_on: occurredOn, note: note.trim() || `Repayment for ${loan.name}`, loan_id: loan.id }); if (result.error) throw new Error(result.error); setAmount(''); setNote(''); setStatus(isUrdu ? 'واپسی محفوظ ہو گئی۔' : 'Repayment saved.'); onSaved(); } catch (error) { setStatus(error instanceof Error ? error.message : (isUrdu ? 'واپسی محفوظ نہیں ہو سکی۔' : 'Could not save the repayment.')); } finally { setIsSaving(false); } };
   return (
     <article className="loan-card">
       <div className="loan-card-heading"><div><strong data-user-content>{loan.name}</strong><small>{isUrdu ? `${formatDate(loan.issuedOn)} کو جاری ہوا` : `Issued ${formatDate(loan.issuedOn)}`}</small></div><span className={loan.isSettled ? 'loan-settled' : 'loan-open'}>{loan.isSettled ? (isUrdu ? 'مکمل' : 'Settled') : (isUrdu ? 'جاری' : 'Open')}</span></div>
@@ -80,10 +83,10 @@ function LoanCard({ loan, language }: { loan: CompanyLoanSnapshot; language?: Ap
   );
 }
 
-function TransactionForm({ language }: { language?: AppLanguage }) {
+function TransactionForm({ language, userId, onSaved }: { language?: AppLanguage; userId: string; onSaved: () => void }) {
   const isUrdu = language === 'ur';
   const [type, setType] = useState<ManualCompanyTransactionType>('credit'); const [amount, setAmount] = useState(''); const [occurredOn, setOccurredOn] = useState(getLocalDateValue); const [note, setNote] = useState(''); const [status, setStatus] = useState(''); const [isSaving, setIsSaving] = useState(false);
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ رقم درج کریں۔' : 'Enter an amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { await addCompanyTransaction({ type, amount: parsedAmount, occurredOn, note: note.trim() }); setAmount(''); setNote(''); setStatus(isUrdu ? 'اندراج مقامی طور پر محفوظ ہو گیا۔' : 'Entry saved locally.'); } catch { setStatus(isUrdu ? 'یہ اندراج محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔' : 'Could not save this entry locally. Please try again.'); } finally { setIsSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const parsedAmount = Number(amount); if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) { setStatus(isUrdu ? 'صفر سے زیادہ رقم درج کریں۔' : 'Enter an amount greater than zero.'); return; } setIsSaving(true); setStatus(''); try { const result = await addCompanyTransaction(userId, { type, amount: parsedAmount, occurred_on: occurredOn, note: note.trim(), loan_id: null }); if (result.error) throw new Error(result.error); setAmount(''); setNote(''); setStatus(isUrdu ? 'اندراج محفوظ ہو گیا۔' : 'Entry saved.'); onSaved(); } catch (err) { setStatus(err instanceof Error ? err.message : (isUrdu ? 'یہ اندراج محفوظ نہیں ہو سکا۔' : 'Could not save this entry.')); } finally { setIsSaving(false); } };
   return (
     <section className="company-entry-form">
       <div><p className="eyebrow">{isUrdu ? 'نیا اندراج' : 'NEW ENTRY'}</p><h2>{isUrdu ? 'نئی رقم درج کریں۔' : 'Record another movement.'}</h2><p>{isUrdu ? 'قرضوں اور واپسیوں کے لیے اوپر دیا گیا قرض ٹریکر استعمال کریں۔ کریڈٹ بیلنس بڑھاتے ہیں؛ باقی اندراجات اسے کم کرتے ہیں۔' : 'Use the loan tracker above for loans and repayments. Credits increase balance; these other entries reduce it.'}</p></div>
@@ -97,7 +100,7 @@ function TransactionForm({ language }: { language?: AppLanguage }) {
   );
 }
 
-function TransactionList({ transactions, language }: { transactions: CompanyTransaction[]; language?: AppLanguage }) {
+function TransactionList({ transactions, language, userId, onDeleted }: { transactions: CompanyTransaction[]; language?: AppLanguage; userId: string; onDeleted: () => void }) {
   const isUrdu = language === 'ur';
   const [removingId, setRemovingId] = useState<string | null>(null);
   const remove = async (transaction: CompanyTransaction) => {
@@ -106,7 +109,7 @@ function TransactionList({ transactions, language }: { transactions: CompanyTran
     const confirmMsg = isUrdu ? `کیا آپ ${formatDate(transaction.occurredOn)} کا ${typeLabel} ہٹانا چاہتے ہیں؟${warning}` : `Remove the ${transactionLabels[transaction.type].toLowerCase()} from ${formatDate(transaction.occurredOn)}?${warning}`;
     if (!window.confirm(confirmMsg)) return;
     setRemovingId(transaction.id);
-    try { await deleteCompanyTransaction(transaction.id); } finally { setRemovingId(null); }
+    try { await deleteCompanyTransaction(userId, transaction.id); onDeleted(); } finally { setRemovingId(null); }
   };
   return (
     <section className="company-transaction-list">
